@@ -1,5 +1,10 @@
 # CPU-80386-cpp
-80386 PC emulator
+## 80386 PC emulator
+
+<br><br><br>
+
+### [8086 PC emulator](https://github.com/kxkx5150/CPU-8086-cpp)  
+
 
 <br><br><br>
 
