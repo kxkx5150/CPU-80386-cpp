@@ -206,7 +206,7 @@ x86Internal::~x86Internal()
 }
 int x86Internal::file_read()
 {
-    // filename = "linux_boot_logs/log0.txt";
+    filename = "linux_boot_logs/log1.txt";
     string   line;
     ifstream input_file(filename);
     if (!input_file.is_open()) {

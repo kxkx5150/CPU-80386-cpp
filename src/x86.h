@@ -726,6 +726,7 @@ class Serial {
                     lsr &= ~0x20;
                     update_irq();
                     // write_func(String.fromCharCode(x));
+                    printf("%c", x);
                     lsr |= 0x20;
                     lsr |= 0x40;
                     update_irq();

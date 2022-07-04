@@ -50,6 +50,11 @@ void PC::load(int binno, std::string path)
 void PC::start()
 {
     cpu->write_string(cmdline_addr, "console=ttyS0 root=/dev/ram0 rw init=/sbin/init notsc=1");
+    printf("\n\n************************\n");
+    printf("************************\n");
+    printf("****** Boot Linux ******\n");
+    printf("************************\n");
+    printf("************************\n\n\n");
     cpu->start(start_addr, initrd_size, cmdline_addr);
 }
 void PC::run_cpu()
