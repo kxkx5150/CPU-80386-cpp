@@ -1,16 +1,28 @@
 # CPU-80386-cpp
-## 80386 PC emulator
+## Intel 80386 PC emulator
 
-<br><br><br>
-
-### [8086 PC emulator](https://github.com/kxkx5150/CPU-8086-cpp)  
-
-
-<br><br><br>
+<br>
 
 ## WIP
 
+https://user-images.githubusercontent.com/10168979/177209480-384a97b8-ed69-4834-809f-8ad83ef4f8b9.mp4
+
 use JSLinux as a reference
+
+<br><br><br><br><br><br>
+
+
+## Intel 8086 version
+
+[8086 PC emulator](https://github.com/kxkx5150/CPU-8086-cpp)  
+
+
+
+
+
+<br><br><br>
+
+
 
 <br><br><br>
 
