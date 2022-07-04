@@ -1,0 +1,16 @@
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+*.idx
+*.log
+.idea/
+.cache/
+build/
+exe/
+log_linux_short.txt
+linux_boot_logs/
