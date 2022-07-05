@@ -457,7 +457,7 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
         for (;;) {
 
             if (count == 13004397) {    // 1129911
-                printf("stop\n");
+                printf("\n\nstop\n");
             }
             cpu_dump(OPbyte);
 
