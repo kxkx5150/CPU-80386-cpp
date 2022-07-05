@@ -16,7 +16,7 @@ void render_loop(PC *pc, SDL_Renderer *render, int width, int height)
 }
 int main(int ArgCount, char **Args)
 {
-    static const int width = 560, height = 300;
+    static const int width = 160, height = 100;
     PC              *pc = new PC();
     pc->init();
     pc->start();

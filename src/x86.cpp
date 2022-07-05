@@ -207,7 +207,7 @@ x86Internal::~x86Internal()
 }
 int x86Internal::file_read()
 {
-    filename = "linux_boot_logs/log13.txt";
+    // filename = "linux_boot_logs/log0.txt";
     string   line;
     ifstream input_file(filename);
     if (!input_file.is_open()) {
@@ -351,7 +351,8 @@ void x86Internal::cpu_dump(int OPbyte)
             delete[] tbf;
         } else {
             printf("\n\n-- Compare OK ! ---\n");
-            printf("count : %d\n\n", count);
+            // printf("count : %d\n\n", count);
+            printf("\n\n\n\n\n\n");
             exit(1);
         }
     }
@@ -439,8 +440,9 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
                     initial_mem_ptr = physmem8_ptr = mem_size;
                     for (y = 0; y < x; y++) {
                         mem8_loc = (eip_offset + y) >> 0;
+                        uint32_t mem8_locu = mem8_loc;
                         phys_mem8[physmem8_ptr + y] =
-                            (((last_tlb_val = _tlb_read_[mem8_loc >> 12]) == -1) ? __ld_8bits_mem8_read()
+                            (((last_tlb_val = _tlb_read_[mem8_locu >> 12]) == -1) ? __ld_8bits_mem8_read()
                                                                                  : phys_mem8[mem8_loc ^ last_tlb_val]);
                     }
                     physmem8_ptr++;
@@ -456,8 +458,8 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
 
         for (;;) {
 
-            if (count == 13008909) {    // 1129911
-                printf("\n\nstop\n");
+            if (count == 13011849) {    // 1129911
+                // printf("\n\nstop\n");
             }
             cpu_dump(OPbyte);
 
@@ -579,7 +581,8 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
                     } else {
                         mem8_loc = segment_translation(mem8);
                         {
-                            last_tlb_val = _tlb_write_[mem8_loc >> 12];
+                            uint32_t mem8_locu = mem8_loc;
+                            last_tlb_val = _tlb_write_[mem8_locu >> 12];
                             if ((last_tlb_val | mem8_loc) & 3) {
                                 __st32_mem8_write(x);
                             } else {
@@ -2379,7 +2382,8 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
                                 x        = (regs[reg_idx0 & 3] >> ((reg_idx0 & 4) << 1)) & 0xff;
                             } else {
                                 mem8_loc = segment_translation(mem8);
-                                x        = (((last_tlb_val = _tlb_read_[mem8_loc >> 12]) == -1)
+                                uint32_t mem8_locu = mem8_loc;
+                                x        = (((last_tlb_val = _tlb_read_[mem8_locu >> 12]) == -1)
                                                 ? __ld_8bits_mem8_read()
                                                 : phys_mem8[mem8_loc ^ last_tlb_val]);
                             }
@@ -2404,7 +2408,8 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
                                 x        = (regs[reg_idx0 & 3] >> ((reg_idx0 & 4) << 1));
                             } else {
                                 mem8_loc = segment_translation(mem8);
-                                x        = (((last_tlb_val = _tlb_read_[mem8_loc >> 12]) == -1)
+                                uint32_t mem8_locu = mem8_loc;
+                                x        = (((last_tlb_val = _tlb_read_[mem8_locu >> 12]) == -1)
                                                 ? __ld_8bits_mem8_read()
                                                 : phys_mem8[mem8_loc ^ last_tlb_val]);
                             }
@@ -4260,7 +4265,8 @@ int x86Internal::__ld_8bits_mem8_read()
 int x86Internal::ld_8bits_mem8_read()
 {
     int last_tlb_val;
-    return (((last_tlb_val = _tlb_read_[mem8_loc >> 12]) == -1) ? __ld_8bits_mem8_read()
+    uint32_t mem8_locu = mem8_loc;
+    return (((last_tlb_val = _tlb_read_[mem8_locu >> 12]) == -1) ? __ld_8bits_mem8_read()
                                                                 : phys_mem8[mem8_loc ^ last_tlb_val]);
 }
 
@@ -4275,7 +4281,8 @@ int x86Internal::__ld_16bits_mem8_read()
 int x86Internal::ld_16bits_mem8_read()
 {
     int last_tlb_val;
-    return (((last_tlb_val = _tlb_read_[mem8_loc >> 12]) | mem8_loc) & 1 ? __ld_16bits_mem8_read()
+    uint32_t mem8_locu = mem8_loc;
+    return (((last_tlb_val = _tlb_read_[mem8_locu >> 12]) | mem8_loc) & 1 ? __ld_16bits_mem8_read()
                                                                          : phys_mem16[(mem8_loc ^ last_tlb_val) >> 1]);
 }
 
@@ -4309,7 +4316,8 @@ int x86Internal::__ld_8bits_mem8_write()
 int x86Internal::ld_8bits_mem8_write()
 {
     int tlb_lookup;
-    return ((tlb_lookup = _tlb_write_[mem8_loc >> 12]) == -1) ? __ld_8bits_mem8_write()
+    uint32_t mem8_locu = mem8_loc;
+    return ((tlb_lookup = _tlb_write_[mem8_locu >> 12]) == -1) ? __ld_8bits_mem8_write()
                                                               : phys_mem8[mem8_loc ^ tlb_lookup];
 }
 int x86Internal::__ld_16bits_mem8_write()
@@ -4323,7 +4331,8 @@ int x86Internal::__ld_16bits_mem8_write()
 int x86Internal::ld_16bits_mem8_write()
 {
     int tlb_lookup;
-    return ((tlb_lookup = _tlb_write_[mem8_loc >> 12]) | mem8_loc) & 1 ? __ld_16bits_mem8_write()
+    uint32_t mem8_locu = mem8_loc;
+    return ((tlb_lookup = _tlb_write_[mem8_locu >> 12]) | mem8_loc) & 1 ? __ld_16bits_mem8_write()
                                                                        : phys_mem16[(mem8_loc ^ tlb_lookup) >> 1];
 }
 int x86Internal::__ld_32bits_mem8_write()
@@ -4341,7 +4350,8 @@ int x86Internal::__ld_32bits_mem8_write()
 int x86Internal::ld_32bits_mem8_write()
 {
     int tlb_lookup;
-    return ((tlb_lookup = _tlb_write_[mem8_loc >> 12]) | mem8_loc) & 3 ? __ld_32bits_mem8_write()
+    uint32_t mem8_locu = mem8_loc;
+    return ((tlb_lookup = _tlb_write_[mem8_locu >> 12]) | mem8_loc) & 3 ? __ld_32bits_mem8_write()
                                                                        : phys_mem32[(mem8_loc ^ tlb_lookup) >> 2];
 }
 
@@ -4370,7 +4380,8 @@ int x86Internal::__ld16_mem8_kernel_read()
 int x86Internal::ld16_mem8_kernel_read()
 {
     int tlb_lookup;
-    return ((tlb_lookup = tlb_read_kernel[mem8_loc >> 12]) | mem8_loc) & 1 ? __ld16_mem8_kernel_read()
+    uint32_t mem8_locu  = mem8_loc;
+    return ((tlb_lookup = tlb_read_kernel[mem8_locu >> 12]) | mem8_loc) & 1 ? __ld16_mem8_kernel_read()
                                                                            : phys_mem16[(mem8_loc ^ tlb_lookup) >> 1];
 }
 int x86Internal::__ld32_mem8_kernel_read()
@@ -4479,7 +4490,8 @@ void x86Internal::__st16_mem8_write(int x)
 }
 void x86Internal::st16_mem8_write(int x)
 {
-    int last_tlb_val = _tlb_write_[mem8_loc >> 12];
+    uint32_t mem8_locu = mem8_loc;
+    int last_tlb_val = _tlb_write_[mem8_locu >> 12];
     if ((last_tlb_val | mem8_loc) & 1) {
         __st16_mem8_write(x);
     } else {
@@ -4521,7 +4533,8 @@ void x86Internal::__st8_mem8_kernel_write(int x)
 }
 void x86Internal::st8_mem8_kernel_write(int x)
 {
-    int tlb_lookup = tlb_write_kernel[mem8_loc >> 12];
+    uint32_t mem8_locu    = mem8_loc;
+    int tlb_lookup = tlb_write_kernel[mem8_locu >> 12];
     if (tlb_lookup == -1) {
         __st8_mem8_kernel_write(x);
     } else {
@@ -4537,7 +4550,8 @@ void x86Internal::__st16_mem8_kernel_write(int x)
 }
 void x86Internal::st16_mem8_kernel_write(int x)
 {
-    int tlb_lookup = tlb_write_kernel[mem8_loc >> 12];
+    uint32_t mem8_locu    = mem8_loc;
+    int tlb_lookup = tlb_write_kernel[mem8_locu >> 12];
     if ((tlb_lookup | mem8_loc) & 1) {
         __st16_mem8_kernel_write(x);
     } else {
@@ -5517,7 +5531,8 @@ void x86Internal::op_16_DIV(int OPbyte)
     int a, q, r;
     a = (regs[2] << 16) | (regs[0] & 0xffff);
     OPbyte &= 0xffff;
-    if ((a >> 16) >= OPbyte)
+    uint32_t au = a;
+    if ((au >> 16) >= OPbyte)
         abort(0);
     q = (a / OPbyte) >> 0;
     r = (a % OPbyte);
@@ -6244,7 +6259,8 @@ int x86Internal::operation_size_function(int eip_offset, int OPbyte)
                 if ((n + 1) > 15)
                     abort(6);
                 mem8_loc = (eip_offset + (n++)) >> 0;
-                OPbyte   = (((last_tlb_val = _tlb_read_[mem8_loc >> 12]) == -1) ? __ld_8bits_mem8_read()
+                uint32_t mem8_locu = mem8_loc;
+                OPbyte   = (((last_tlb_val = _tlb_read_[mem8_locu >> 12]) == -1) ? __ld_8bits_mem8_read()
                                                                                 : phys_mem8[mem8_loc ^ last_tlb_val]);
             } break;
             case 0x67:    //   Address-size override prefix
@@ -6257,7 +6273,8 @@ int x86Internal::operation_size_function(int eip_offset, int OPbyte)
                     if ((n + 1) > 15)
                         abort(6);
                     mem8_loc = (eip_offset + (n++)) >> 0;
-                    OPbyte   = (((last_tlb_val = _tlb_read_[mem8_loc >> 12]) == -1) ? __ld_8bits_mem8_read()
+                    uint32_t mem8_locu = mem8_loc;
+                    OPbyte   = (((last_tlb_val = _tlb_read_[mem8_locu >> 12]) == -1) ? __ld_8bits_mem8_read()
                                                                                     : phys_mem8[mem8_loc ^ last_tlb_val]);
                 }
                 break;
@@ -6496,7 +6513,8 @@ int x86Internal::operation_size_function(int eip_offset, int OPbyte)
                     if ((n + 1) > 15)
                         abort(6);
                     mem8_loc = (eip_offset + (n++)) >> 0;
-                    mem8     = (((last_tlb_val = _tlb_read_[mem8_loc >> 12]) == -1) ? __ld_8bits_mem8_read()
+                    uint32_t mem8_locu = mem8_loc;
+                    mem8     = (((last_tlb_val = _tlb_read_[mem8_locu >> 12]) == -1) ? __ld_8bits_mem8_read()
                                                                                     : phys_mem8[mem8_loc ^ last_tlb_val]);
                 }
                 if (CS_flags & 0x0080) {
@@ -6518,7 +6536,8 @@ int x86Internal::operation_size_function(int eip_offset, int OPbyte)
                             if ((n + 1) > 15)
                                 abort(6);
                             mem8_loc         = (eip_offset + (n++)) >> 0;
-                            local_OPbyte_var = (((last_tlb_val = _tlb_read_[mem8_loc >> 12]) == -1)
+                            uint32_t mem8_locu = mem8_loc;
+                            local_OPbyte_var = (((last_tlb_val = _tlb_read_[mem8_locu >> 12]) == -1)
                                                     ? __ld_8bits_mem8_read()
                                                     : phys_mem8[mem8_loc ^ last_tlb_val]);
                         }
@@ -6589,7 +6608,8 @@ int x86Internal::operation_size_function(int eip_offset, int OPbyte)
                     if ((n + 1) > 15)
                         abort(6);
                     mem8_loc = (eip_offset + (n++)) >> 0;
-                    mem8     = (((last_tlb_val = _tlb_read_[mem8_loc >> 12]) == -1) ? __ld_8bits_mem8_read()
+                    uint32_t mem8_locu = mem8_loc;
+                    mem8     = (((last_tlb_val = _tlb_read_[mem8_locu >> 12]) == -1) ? __ld_8bits_mem8_read()
                                                                                     : phys_mem8[mem8_loc ^ last_tlb_val]);
                 }
                 if (CS_flags & 0x0080) {
@@ -6611,7 +6631,8 @@ int x86Internal::operation_size_function(int eip_offset, int OPbyte)
                             if ((n + 1) > 15)
                                 abort(6);
                             mem8_loc         = (eip_offset + (n++)) >> 0;
-                            local_OPbyte_var = (((last_tlb_val = _tlb_read_[mem8_loc >> 12]) == -1)
+                            uint32_t mem8_locu = mem8_loc;
+                            local_OPbyte_var = (((last_tlb_val = _tlb_read_[mem8_locu >> 12]) == -1)
                                                     ? __ld_8bits_mem8_read()
                                                     : phys_mem8[mem8_loc ^ last_tlb_val]);
                         }
@@ -6749,7 +6770,8 @@ int x86Internal::operation_size_function(int eip_offset, int OPbyte)
                     if ((n + 1) > 15)
                         abort(6);
                     mem8_loc = (eip_offset + (n++)) >> 0;
-                    mem8     = (((last_tlb_val = _tlb_read_[mem8_loc >> 12]) == -1) ? __ld_8bits_mem8_read()
+                    uint32_t mem8_locu = mem8_loc;
+                    mem8     = (((last_tlb_val = _tlb_read_[mem8_locu >> 12]) == -1) ? __ld_8bits_mem8_read()
                                                                                     : phys_mem8[mem8_loc ^ last_tlb_val]);
                 }
                 if (CS_flags & 0x0080) {
@@ -6771,7 +6793,8 @@ int x86Internal::operation_size_function(int eip_offset, int OPbyte)
                             if ((n + 1) > 15)
                                 abort(6);
                             mem8_loc         = (eip_offset + (n++)) >> 0;
-                            local_OPbyte_var = (((last_tlb_val = _tlb_read_[mem8_loc >> 12]) == -1)
+                            uint32_t mem8_locu = mem8_loc;
+                            local_OPbyte_var = (((last_tlb_val = _tlb_read_[mem8_locu >> 12]) == -1)
                                                     ? __ld_8bits_mem8_read()
                                                     : phys_mem8[mem8_loc ^ last_tlb_val]);
                         }
@@ -6831,7 +6854,8 @@ int x86Internal::operation_size_function(int eip_offset, int OPbyte)
                     if ((n + 1) > 15)
                         abort(6);
                     mem8_loc = (eip_offset + (n++)) >> 0;
-                    mem8     = (((last_tlb_val = _tlb_read_[mem8_loc >> 12]) == -1) ? __ld_8bits_mem8_read()
+                    uint32_t mem8_locu = mem8_loc;
+                    mem8     = (((last_tlb_val = _tlb_read_[mem8_locu >> 12]) == -1) ? __ld_8bits_mem8_read()
                                                                                     : phys_mem8[mem8_loc ^ last_tlb_val]);
                 }
                 if (CS_flags & 0x0080) {
@@ -6853,7 +6877,8 @@ int x86Internal::operation_size_function(int eip_offset, int OPbyte)
                             if ((n + 1) > 15)
                                 abort(6);
                             mem8_loc         = (eip_offset + (n++)) >> 0;
-                            local_OPbyte_var = (((last_tlb_val = _tlb_read_[mem8_loc >> 12]) == -1)
+                            uint32_t mem8_locu = mem8_loc;
+                            local_OPbyte_var = (((last_tlb_val = _tlb_read_[mem8_locu >> 12]) == -1)
                                                     ? __ld_8bits_mem8_read()
                                                     : phys_mem8[mem8_loc ^ last_tlb_val]);
                         }
@@ -7038,7 +7063,8 @@ int x86Internal::operation_size_function(int eip_offset, int OPbyte)
                             if ((n + 1) > 15)
                                 abort(6);
                             mem8_loc = (eip_offset + (n++)) >> 0;
-                            mem8     = (((last_tlb_val = _tlb_read_[mem8_loc >> 12]) == -1)
+                            uint32_t mem8_locu = mem8_loc;
+                            mem8     = (((last_tlb_val = _tlb_read_[mem8_locu >> 12]) == -1)
                                             ? __ld_8bits_mem8_read()
                                             : phys_mem8[mem8_loc ^ last_tlb_val]);
                         }
@@ -7061,7 +7087,8 @@ int x86Internal::operation_size_function(int eip_offset, int OPbyte)
                                     if ((n + 1) > 15)
                                         abort(6);
                                     mem8_loc         = (eip_offset + (n++)) >> 0;
-                                    local_OPbyte_var = (((last_tlb_val = _tlb_read_[mem8_loc >> 12]) == -1)
+                                    uint32_t mem8_locu = mem8_loc;
+                                    local_OPbyte_var = (((last_tlb_val = _tlb_read_[mem8_locu >> 12]) == -1)
                                                             ? __ld_8bits_mem8_read()
                                                             : phys_mem8[mem8_loc ^ last_tlb_val]);
                                 }
@@ -7117,7 +7144,8 @@ int x86Internal::operation_size_function(int eip_offset, int OPbyte)
                             if ((n + 1) > 15)
                                 abort(6);
                             mem8_loc = (eip_offset + (n++)) >> 0;
-                            mem8     = (((last_tlb_val = _tlb_read_[mem8_loc >> 12]) == -1)
+                            uint32_t mem8_locu = mem8_loc;
+                            mem8     = (((last_tlb_val = _tlb_read_[mem8_locu >> 12]) == -1)
                                             ? __ld_8bits_mem8_read()
                                             : phys_mem8[mem8_loc ^ last_tlb_val]);
                         }
@@ -7140,7 +7168,8 @@ int x86Internal::operation_size_function(int eip_offset, int OPbyte)
                                     if ((n + 1) > 15)
                                         abort(6);
                                     mem8_loc         = (eip_offset + (n++)) >> 0;
-                                    local_OPbyte_var = (((last_tlb_val = _tlb_read_[mem8_loc >> 12]) == -1)
+                                    uint32_t mem8_locu = mem8_loc;
+                                    local_OPbyte_var = (((last_tlb_val = _tlb_read_[mem8_locu >> 12]) == -1)
                                                             ? __ld_8bits_mem8_read()
                                                             : phys_mem8[mem8_loc ^ last_tlb_val]);
                                 }
