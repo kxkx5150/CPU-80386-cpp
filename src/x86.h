@@ -31,6 +31,7 @@ class PIC_Controller;
 class x86 {
 
   public:
+    bool logcheck = true;
     string filename        = "log.txt";
     int    filecheck_start = 0;
     int    filecheck_end   = 1000;
