@@ -456,7 +456,7 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
 
         for (;;) {
 
-            if (count == 13004397) {    // 1129911
+            if (count == 13008909) {    // 1129911
                 printf("\n\nstop\n");
             }
             cpu_dump(OPbyte);
@@ -7380,12 +7380,12 @@ int x86Internal::calculate_descriptor_base(int descriptor_low4bytes, int descrip
              (descriptor_high4bytes & 0xff000000))) &
            -1;
 }
-void x86Internal::set_descriptor_register(DescriptorTable descriptor_table, int descriptor_low4bytes,
+void x86Internal::set_descriptor_register(DescriptorTable *descriptor_table, int descriptor_low4bytes,
                                           int descriptor_high4bytes)
 {
-    descriptor_table.base  = calculate_descriptor_base(descriptor_low4bytes, descriptor_high4bytes);
-    descriptor_table.limit = calculate_descriptor_limit(descriptor_low4bytes, descriptor_high4bytes);
-    descriptor_table.flags = descriptor_high4bytes;
+    descriptor_table->base  = calculate_descriptor_base(descriptor_low4bytes, descriptor_high4bytes);
+    descriptor_table->limit = calculate_descriptor_limit(descriptor_low4bytes, descriptor_high4bytes);
+    descriptor_table->flags = descriptor_high4bytes;
 }
 void x86Internal::set_segment_vars(int ee, int selector, int base, int limit, int flags)
 {
@@ -7793,7 +7793,7 @@ void x86Internal::op_LDTR(int selector)
             abort_with_error_code(13, selector & 0xfffc);
         if (!(descriptor_high4bytes & (1 << 15)))
             abort_with_error_code(11, selector & 0xfffc);
-        set_descriptor_register(ldt, descriptor_low4bytes, descriptor_high4bytes);
+        set_descriptor_register(&ldt, descriptor_low4bytes, descriptor_high4bytes);
     }
     ldt.selector = selector;
 }
@@ -7823,7 +7823,7 @@ void x86Internal::op_LTR(int selector)
             abort_with_error_code(13, selector & 0xfffc);
         if (!(descriptor_high4bytes & (1 << 15)))
             abort_with_error_code(11, selector & 0xfffc);
-        set_descriptor_register(tr, descriptor_low4bytes, descriptor_high4bytes);
+        set_descriptor_register(&tr, descriptor_low4bytes, descriptor_high4bytes);
         descriptor_high4bytes |= (1 << 9);
         st32_mem8_kernel_write(descriptor_high4bytes);
     }

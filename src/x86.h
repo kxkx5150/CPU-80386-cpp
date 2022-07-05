@@ -296,7 +296,7 @@ class x86Internal : public x86 {
     void load_from_descriptor_table(int selector, int *desary);
     int  calculate_descriptor_limit(int descriptor_low4bytes, int descriptor_high4bytes);
     int  calculate_descriptor_base(int descriptor_low4bytes, int descriptor_high4bytes);
-    void set_descriptor_register(DescriptorTable descriptor_table, int descriptor_low4bytes, int descriptor_high4bytes);
+    void set_descriptor_register(DescriptorTable *descriptor_table, int descriptor_low4bytes, int descriptor_high4bytes);
     void set_segment_vars(int ee, int selector, int base, int limit, int flags);
     void init_segment_vars_with_selector(int Sb, int selector);
 
