@@ -303,8 +303,8 @@ void x86Internal::cpu_dump(int OPbyte)
         sprintf(buf1, "STEPS=%d OPCODE=%d", count, OPbyte);
         // printf("%s", buf1);
         char buf2[1000];
-        sprintf(buf2, "EIP=%08X EAX=%08X ECX=%08X EDX=%08X EBX=%08X EFL=%08X ESP=%08X EBP=%08X ESI=%08X EDI=%08X", eip,
-                regs[0], regs[1], regs[2], regs[3], eflags, regs[4], regs[5], regs[6], regs[7]);
+        sprintf(buf2, "EIP=%08X EAX=%08X ECX=%08X EDX=%08X EBX=%08X EFL=%08X ESP=%08X EBP=%08X ESI=%08X EDI=%08X", 
+                       eip,regs[0], regs[1], regs[2], regs[3], eflags, regs[4], regs[5], regs[6], regs[7]);
         // printf("%s", buf2);
         char buf3[1000];
         sprintf(buf3, "TSC=%08X OP=%02X OP2=%02X SRC=%08X DST=%08X DST2=%08X", cycle_count, _op, _op2, _src, _dst,
@@ -456,7 +456,7 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
 
         for (;;) {
 
-            if (count == 7211588) {    // 1129911
+            if (count == 8938209) {    // 1129911
                 printf(" ");
             }
             cpu_dump(OPbyte);
@@ -2176,7 +2176,7 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
                     goto EXEC_LOOP;
                 case 0x9b:    // FWAIT   Check pending unmasked floating-point exceptions
                     goto EXEC_LOOP;
-                case 0xe4:    // IN Ib AL Input from Port
+                case 0xe4:{    // IN Ib AL Input from Port
                     iopl = (eflags >> 12) & 3;
                     if (cpl > iopl)
                         abort(13);
@@ -2187,6 +2187,7 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
                             goto OUTER_LOOP;
                     }
                     goto EXEC_LOOP;
+                }break;
                 case 0xe5:    // IN Ib eAX Input from Port
                     iopl = (eflags >> 12) & 3;
                     if (cpl > iopl)
@@ -2830,12 +2831,14 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
                         case 0xcc:
                         case 0xcd:
                         case 0xce:
-                        case 0xcf:
+                        case 0xcf:{
                             reg_idx1       = OPbyte & 7;
                             x              = regs[reg_idx1];
-                            x              = (x >> 24) | ((x >> 8) & 0x0000ff00) | ((x << 8) & 0x00ff0000) | (x << 24);
+                            uint32_t xuint = x;
+                            x = (xuint >> 24) | ((x >> 8) & 0x0000ff00) | ((x << 8) & 0x00ff0000) | (x << 24);
                             regs[reg_idx1] = x;
                             goto EXEC_LOOP;
+                        }break;
                         case 0x04:
                         case 0x05:    // LOADALL  AX Load All of the CPU Registers
                         case 0x07:    // LOADALL  EAX Load All of the CPU Registers

@@ -848,7 +848,7 @@ class IRQCH {
     int          bcd             = 0;
     int          gate            = 0;
     int          count_load_time = 0;
-    float        pit_time_unit   = 0.596591;
+    // float        pit_time_unit   = 0.596591;
     x86Internal *cpu;
 
   public:
@@ -859,7 +859,7 @@ class IRQCH {
 
     int get_time()
     {
-        return std::floor(cpu->cycle_count * pit_time_unit);
+        return std::floor(cpu->cycle_count * 0.596591);
     }
 
     int pit_get_count()
@@ -995,10 +995,11 @@ class PIT {
             auto s = pit_channels[hh];
             ih     = (x >> 4) & 3;
             switch (ih) {
-                case 0:
-                    s->latched_count = s->pit_get_count();
+                case 0:{
+                    int val = s->pit_get_count();
+                    s->latched_count = val;
                     s->rw_state      = 4;
-                    break;
+                }break;
                 default:
                     s->mode     = (x >> 1) & 7;
                     s->bcd      = x & 1;
