@@ -221,7 +221,6 @@ int x86Internal::file_read()
 
     input_file.close();
 
-    stepinfo = false;
     if (filename == "linux_boot_logs/log0.txt") {
         filecheck_start = 1;
         filecheck_end   = 1000000;
@@ -291,6 +290,7 @@ int x86Internal::file_read()
         fileoffset      = 16000000;
     }
 
+    stepinfo = false;
     return EXIT_SUCCESS;
 }
 void x86Internal::cpu_dump(int OPbyte)
@@ -456,7 +456,7 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
 
         for (;;) {
 
-            if (count == 1848703) {    // 1129911
+            if (count == 3502583) {    // 1129911
                 printf(" ");
             }
             cpu_dump(OPbyte);
@@ -5640,16 +5640,17 @@ int x86Internal::op_16_IMUL(int a, int OPbyte)
 }
 int x86Internal::do_multiply32(int _a, int _OPbyte)
 {
-    long long Jc, Ic, Tc, Uc, m;
-    uint64_t  a      = _a >> 0;
-    uint32_t  OPbyte = _OPbyte >> 0;
+    uint32_t Jc, Ic, Tc, Uc, m;
+    uint64_t  a      = _a;
+    uint32_t au = _a;
+    uint32_t  OPbyte = _OPbyte;
     uint64_t  r      = a * OPbyte;
     if (r <= 0xffffffff) {
         v = 0;
         r &= -1;
     } else {
         Jc = a & 0xffff;
-        Ic = a >> 16;
+        Ic = au >> 16;
         Tc = OPbyte & 0xffff;
         Uc = OPbyte >> 16;
         r  = Jc * Tc;
