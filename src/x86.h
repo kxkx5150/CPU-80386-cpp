@@ -650,7 +650,6 @@ class PIC_Controller {
         }
         update_irq();
         return intno;
-        return 0;
     }
 
     void update_irq();

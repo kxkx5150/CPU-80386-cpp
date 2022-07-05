@@ -207,7 +207,7 @@ x86Internal::~x86Internal()
 }
 int x86Internal::file_read()
 {
-    filename = "linux_boot_logs/log3.txt";
+    filename = "linux_boot_logs/log7.txt";
     string   line;
     ifstream input_file(filename);
     if (!input_file.is_open()) {
@@ -4352,7 +4352,8 @@ int x86Internal::__ld8_mem8_kernel_read()
 int x86Internal::ld8_mem8_kernel_read()
 {
     int tlb_lookup;
-    return ((tlb_lookup = tlb_read_kernel[mem8_loc >> 12]) == -1) ? __ld8_mem8_kernel_read()
+    uint32_t mem8_locu  = mem8_loc;
+    return ((tlb_lookup = tlb_read_kernel[mem8_locu >> 12]) == -1) ? __ld8_mem8_kernel_read()
                                                                   : phys_mem8[mem8_loc ^ tlb_lookup];
 }
 int x86Internal::__ld16_mem8_kernel_read()
