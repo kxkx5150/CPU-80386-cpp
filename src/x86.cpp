@@ -207,7 +207,7 @@ x86Internal::~x86Internal()
 }
 int x86Internal::file_read()
 {
-    filename = "linux_boot_logs/log8.txt";
+    filename = "linux_boot_logs/log13.txt";
     string   line;
     ifstream input_file(filename);
     if (!input_file.is_open()) {
@@ -456,8 +456,8 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
 
         for (;;) {
 
-            if (count == 8938209) {    // 1129911
-                printf(" ");
+            if (count == 13004397) {    // 1129911
+                printf("stop\n");
             }
             cpu_dump(OPbyte);
 
