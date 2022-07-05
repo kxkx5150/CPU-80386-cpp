@@ -12,7 +12,14 @@ boot Linux
 
 ### WIP
 
-https://user-images.githubusercontent.com/10168979/177370041-00a93c91-02fc-4a96-9031-a28c63e29fa6.mp4
+
+
+https://user-images.githubusercontent.com/10168979/177424985-9e91d420-b6b8-4e00-8db4-0dbcb3d3b295.mp4
+
+![ss](https://user-images.githubusercontent.com/10168979/177425392-062bc70e-73c5-4fb4-a054-42669a44c054.png)
+
+
+
 
 use JSLinux as a reference
 
