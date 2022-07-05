@@ -836,7 +836,7 @@ class Serial {
 };
 inline void Serial::set_irq(int x)
 {
-    pic->set_irq(0, x);
+    pic->set_irq(4, x);
 }
 class IRQCH {
   public:
