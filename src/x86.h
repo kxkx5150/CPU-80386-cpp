@@ -72,10 +72,10 @@ class x86 {
     int eip = 0;    // instruction pointer
 
     int cc_op   = 0;    // current op
-    int cc_dst  = 0;    // current dest
-    int cc_src  = 0;    // current src
+    int cccc_dst  = 0;    // current dest
+    int cccc_src  = 0;    // current src
     int cc_op2  = 0;    // current op, byte2
-    int cc_dst2 = 0;    // current dest, byte2
+    int cccc_dst2 = 0;    // current dest, byte2
 
     uint8_t  *phys_mem   = nullptr;
     uint8_t  *phys_mem8  = nullptr;
@@ -181,11 +181,11 @@ class x86Internal : public x86 {
     int  SS_mask       = -1;
     int  init_CS_flags = 0;
 
-    int _src  = 0;
-    int _dst  = 0;
+    int cc_src  = 0;
+    int cc_dst  = 0;
     int _op   = 0;
     int _op2  = 0;
-    int _dst2 = 0;
+    int cc_dst2 = 0;
 
     int      *tlb_read, *tlb_write;
     ErrorInfo interrupt;
