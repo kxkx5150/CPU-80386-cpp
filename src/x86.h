@@ -42,11 +42,8 @@ class x86 {
 
     // EAX, EBX, ECX, EDX, ESI, EDI, ESP, EBP  32bit registers
     int regs[8]{0};
-
     int cycle_count = 0;
-
     int cpl = 0;    // current privilege level
-
     int df = 1;    // Direction Flag
 
     int cr0 = (1 << 0);    // PE-mode ON
@@ -254,6 +251,9 @@ class x86Internal : public x86 {
     int             CS_flags = 0;
 
   private:
+    int OPbyte     = 0;
+    int eip_offset = 0;
+
     int N_cycles    = 0;
     int cycles_left = 0;
     int mem8_loc;
@@ -275,15 +275,18 @@ class x86Internal : public x86 {
     int cc_op2  = 0;
     int cc_dst2 = 0;
 
-    int      *tlb_read, *tlb_write;
-    ErrorInfo interrupt;
-
     int dpl = 0;
 
+    int      *tlb_read, *tlb_write;
+    ErrorInfo interrupt;
+    vector<string> lines;
+
+
   public:
-    int exec(int _N_cycles);
-    int init(int _N_cycles);
-    int Instruction(int _N_cycles, ErrorInfo interrupt);
+    int  exec(int _N_cycles);
+    int  init(int _N_cycles);
+    void check_opbyte();
+    int  instruction(int _N_cycles, ErrorInfo interrupt);
 
     int ld8_port(int port_num);
     int ld16_port(int port_num);
@@ -490,8 +493,7 @@ class x86Internal : public x86 {
     void stringOp_LODSD();
     void stringOp_SCASD();
 
-    vector<string> lines;
-    void           cpu_dump(int OPbyte);
+    void           dump(int OPbyte);
     int            file_read();
 
     int current_cycle_count()

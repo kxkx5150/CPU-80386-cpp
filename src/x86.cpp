@@ -164,7 +164,7 @@ int x86Internal::file_read()
     }
     return EXIT_SUCCESS;
 }
-void x86Internal::cpu_dump(int OPbyte)
+void x86Internal::dump(int OPbyte)
 {
     count++;
 
@@ -242,7 +242,7 @@ int x86Internal::exec(int N_cycles)
 
     while (cycle_count < final_cycle_count) {
         try {
-            exit_code = Instruction(final_cycle_count - cycle_count, interrupt);
+            exit_code = instruction(final_cycle_count - cycle_count, interrupt);
             if (exit_code != 256)
                 break;
             interrupt.error_code = 0;
@@ -273,54 +273,54 @@ int x86Internal::init(int _N_cycles)
     check_interrupt();
     return 0;
 }
-int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
+void x86Internal::check_opbyte()
+{
+    eip                  = (eip + physmem8_ptr - initial_mem_ptr) >> 0;
+    eip_offset           = (eip + CS_base) >> 0;
+    uint32_t eip_offset2 = eip_offset;
+    int64_t  eip_tlb_val = tlb_read[eip_offset2 >> 12];
+
+    if (((eip_tlb_val | eip_offset) & 0xfff) >= (4096 - 15 + 1)) {
+        if (eip_tlb_val == -1)
+            do_tlb_set_page(eip_offset, 0, cpl == 3);
+
+        eip_tlb_val     = tlb_read[eip_offset2 >> 12];
+        initial_mem_ptr = physmem8_ptr = eip_offset ^ eip_tlb_val;
+        OPbyte                         = phys_mem8[physmem8_ptr++];
+        int Cg                         = eip_offset & 0xfff;
+
+        if (Cg >= (4096 - 15 + 1)) {
+            x = operation_size_function(eip_offset, OPbyte);
+            if ((Cg + x) > 4096) {
+                initial_mem_ptr = physmem8_ptr = mem_size;
+                for (y = 0; y < x; y++) {
+                    mem8_loc           = (eip_offset + y) >> 0;
+                    uint32_t mem8_locu = mem8_loc;
+                    phys_mem8[physmem8_ptr + y] =
+                        (((last_tlb_val = tlb_read[mem8_locu >> 12]) == -1) ? __ld_8bits_mem8_read()
+                                                                            : phys_mem8[mem8_loc ^ last_tlb_val]);
+                }
+                physmem8_ptr++;
+            }
+        }
+    } else {
+        initial_mem_ptr = physmem8_ptr = eip_offset ^ eip_tlb_val;
+        OPbyte                         = phys_mem8[physmem8_ptr++];
+    }
+}
+int x86Internal::instruction(int _N_cycles, ErrorInfo interrupt)
 {
     if (init(_N_cycles))
         return 257;
 
     do {
-        eip                  = (eip + physmem8_ptr - initial_mem_ptr) >> 0;
-        int      eip_offset  = (eip + CS_base) >> 0;
-        uint32_t eip_offset2 = eip_offset;
-        uint32_t tlbidx      = eip_offset2 >> 12;
-        int64_t  eip_tlb_val = tlb_read[tlbidx];
-        int      OPbyte;
-
-        if (((eip_tlb_val | eip_offset) & 0xfff) >= (4096 - 15 + 1)) {
-            if (eip_tlb_val == -1)
-                do_tlb_set_page(eip_offset, 0, cpl == 3);
-
-            eip_tlb_val     = tlb_read[eip_offset2 >> 12];
-            initial_mem_ptr = physmem8_ptr = eip_offset2 ^ eip_tlb_val;
-            OPbyte                         = phys_mem8[physmem8_ptr++];
-            int Cg                         = eip_offset2 & 0xfff;
-
-            if (Cg >= (4096 - 15 + 1)) {
-                x = operation_size_function(eip_offset, OPbyte);
-                if ((Cg + x) > 4096) {
-                    initial_mem_ptr = physmem8_ptr = mem_size;
-                    for (y = 0; y < x; y++) {
-                        mem8_loc           = (eip_offset + y) >> 0;
-                        uint32_t mem8_locu = mem8_loc;
-                        phys_mem8[physmem8_ptr + y] =
-                            (((last_tlb_val = tlb_read[mem8_locu >> 12]) == -1) ? __ld_8bits_mem8_read()
-                                                                                : phys_mem8[mem8_loc ^ last_tlb_val]);
-                    }
-                    physmem8_ptr++;
-                }
-            }
-        } else {
-            initial_mem_ptr = physmem8_ptr = eip_offset ^ eip_tlb_val;
-            OPbyte                         = phys_mem8[physmem8_ptr++];
-        }
-
+        check_opbyte();
         CS_flags = init_CS_flags;
         OPbyte |= CS_flags & 0x0100;
 
         while (true) {
-            cpu_dump(OPbyte);
+            dump(OPbyte);
             switch (OPbyte) {
-
                 case 0x66:    //   Operand-size override prefix
                     if (CS_flags == init_CS_flags)
                         operation_size_function(eip_offset, OPbyte);
