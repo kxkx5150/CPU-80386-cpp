@@ -187,7 +187,7 @@ class x86Internal : public x86 {
     int _op2  = 0;
     int _dst2 = 0;
 
-    int      *_tlb_read_, *_tlb_write_;
+    int      *tlb_read, *tlb_write;
     ErrorInfo interrupt;
 
     int dpl = 0;
