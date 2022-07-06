@@ -31,7 +31,7 @@ class PIC_Controller;
 class x86 {
 
   public:
-    bool logcheck = true;
+    bool   logcheck        = true;
     string filename        = "log.txt";
     int    filecheck_start = 0;
     int    filecheck_end   = 1000;
@@ -123,6 +123,31 @@ class x86 {
     void tlb_flush_page(int mem8_loc);
     void tlb_flush_all();
     void tlb_flush_all1(int la);
+    void tlb_clear(int i);
+
+    string hex_rep(int x, int n)
+    {
+        string s = "";
+        int    i;
+        char   h[] = "0123456789ABCDEF";
+        s          = "";
+        for (i = n - 1; i >= 0; i--) {
+            s = s + h[(x >> (i * 4)) & 15];
+        }
+        return s;
+    }
+    string _4_bytes_(int n)
+    {
+        return hex_rep(n, 8);
+    }
+    string _2_bytes_(int n)
+    {
+        return hex_rep(n, 2);
+    }
+    string _1_byte_(int n)
+    {
+        return hex_rep(n, 4);
+    }
 };
 class x86Internal : public x86 {
 
@@ -297,7 +322,8 @@ class x86Internal : public x86 {
     void load_from_descriptor_table(int selector, int *desary);
     int  calculate_descriptor_limit(int descriptor_low4bytes, int descriptor_high4bytes);
     int  calculate_descriptor_base(int descriptor_low4bytes, int descriptor_high4bytes);
-    void set_descriptor_register(DescriptorTable *descriptor_table, int descriptor_low4bytes, int descriptor_high4bytes);
+    void set_descriptor_register(DescriptorTable *descriptor_table, int descriptor_low4bytes,
+                                 int descriptor_high4bytes);
     void set_segment_vars(int ee, int selector, int base, int limit, int flags);
     void init_segment_vars_with_selector(int Sb, int selector);
 
@@ -374,12 +400,18 @@ class x86Internal : public x86 {
     void stringOp_LODSD();
     void stringOp_SCASD();
 
-    int  current_cycle_count();
-    void cpu_abort(string str);
-
     vector<string> lines;
     void           cpu_dump(int OPbyte);
     int            file_read();
+
+    int current_cycle_count()
+    {
+        return cycle_count + (N_cycles - cycles_left);
+    }
+    void cpu_abort(string str)
+    {
+        throw "CPU abort: " + str;
+    }
 };
 
 //
@@ -841,14 +873,14 @@ inline void Serial::set_irq(int x)
 }
 class IRQCH {
   public:
-    int          last_irr        = 0;
-    int          count           = 0;
-    int          latched_count   = 0;
-    int          rw_state        = 0;
-    int          mode            = 0;
-    int          bcd             = 0;
-    int          gate            = 0;
-    int          count_load_time = 0;
+    int last_irr        = 0;
+    int count           = 0;
+    int latched_count   = 0;
+    int rw_state        = 0;
+    int mode            = 0;
+    int bcd             = 0;
+    int gate            = 0;
+    int count_load_time = 0;
     // float        pit_time_unit   = 0.596591;
     x86Internal *cpu;
 
@@ -996,11 +1028,11 @@ class PIT {
             auto s = pit_channels[hh];
             ih     = (x >> 4) & 3;
             switch (ih) {
-                case 0:{
-                    int val = s->pit_get_count();
+                case 0: {
+                    int val          = s->pit_get_count();
                     s->latched_count = val;
                     s->rw_state      = 4;
-                }break;
+                } break;
                 default:
                     s->mode     = (x >> 1) & 7;
                     s->bcd      = x & 1;

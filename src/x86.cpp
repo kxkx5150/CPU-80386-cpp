@@ -31,16 +31,12 @@ x86::x86(int _mem_size)
     tlb_write_user   = new int[tlb_size];
 
     for (int i = 0; i < tlb_size; i++) {
-        tlb_read_kernel[i]  = -1;
-        tlb_write_kernel[i] = -1;
-        tlb_read_user[i]    = -1;
-        tlb_write_user[i]   = -1;
+        tlb_clear(i);
     }
 }
 x86::~x86()
 {
     free(phys_mem8);
-
     delete[] tlb_read_kernel;
     delete[] tlb_write_kernel;
     delete[] tlb_read_user;
@@ -109,23 +105,17 @@ void x86::tlb_set_page(int mem8_loc, int page_val, int set_write_tlb, int set_us
 }
 void x86::tlb_flush_page(int mem8_loc)
 {
-    uint32_t mem8_locu  = mem8_loc;
-    int      i          = mem8_locu >> 12;
-    tlb_read_kernel[i]  = -1;
-    tlb_write_kernel[i] = -1;
-    tlb_read_user[i]    = -1;
-    tlb_write_user[i]   = -1;
+    uint32_t mem8_locu = mem8_loc;
+    int      i         = mem8_locu >> 12;
+    tlb_clear(i);
 }
 void x86::tlb_flush_all()
 {
     int n = tlb_pages_count;
 
     for (int j = 0; j < n; j++) {
-        int i               = tlb_pages[j];
-        tlb_read_kernel[i]  = -1;
-        tlb_write_kernel[i] = -1;
-        tlb_read_user[i]    = -1;
-        tlb_write_user[i]   = -1;
+        int i = tlb_pages[j];
+        tlb_clear(i);
     }
     tlb_pages_count = 0;
 }
@@ -139,36 +129,17 @@ void x86::tlb_flush_all1(int la)
         if (i == la) {
             tlb_pages[new_n++] = i;
         } else {
-            tlb_read_kernel[i]  = -1;
-            tlb_write_kernel[i] = -1;
-            tlb_read_user[i]    = -1;
-            tlb_write_user[i]   = -1;
+            tlb_clear(i);
         }
     }
     tlb_pages_count = new_n;
 }
-string hex_rep(int x, int n)
+void x86::tlb_clear(int i)
 {
-    string s = "";
-    int    i;
-    char   h[] = "0123456789ABCDEF";
-    s          = "";
-    for (i = n - 1; i >= 0; i--) {
-        s = s + h[(x >> (i * 4)) & 15];
-    }
-    return s;
-}
-string _4_bytes_(int n)
-{
-    return hex_rep(n, 8);
-}
-string _2_bytes_(int n)
-{
-    return hex_rep(n, 2);
-}
-string _1_byte_(int n)
-{
-    return hex_rep(n, 4);
+    tlb_read_kernel[i]  = -1;
+    tlb_write_kernel[i] = -1;
+    tlb_read_user[i]    = -1;
+    tlb_write_user[i]   = -1;
 }
 void x86::load(uint8_t *bin, int offset, int size)
 {
@@ -184,10 +155,6 @@ void x86::start(int start_addr, int initrd_size, int cmdline_addr)
     regs[3] = initrd_size;
     regs[1] = cmdline_addr;
 }
-
-//
-//
-//
 x86Internal::x86Internal(int _mem_size) : x86(_mem_size)
 {
     cmos   = new CMOS();
@@ -207,8 +174,8 @@ x86Internal::~x86Internal()
 }
 int x86Internal::file_read()
 {
-    logcheck = false;
-    // filename = "linux_boot_logs/log16.txt";
+    logcheck = true;
+    filename = "linux_boot_logs/log16.txt";
     stepinfo = false;
 
     if (logcheck) {
@@ -9900,13 +9867,4 @@ void x86Internal::ioport_write(int mem8_loc, int data)
             serial->ioport_write(mem8_loc, data);
             break;
     }
-}
-
-int x86Internal::current_cycle_count()
-{
-    return cycle_count + (N_cycles - cycles_left);
-}
-void x86Internal::cpu_abort(string str)
-{
-    throw "CPU abort: " + str;
 }
