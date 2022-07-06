@@ -42,105 +42,6 @@ x86::~x86()
     delete[] tlb_read_user;
     delete[] tlb_write_user;
 }
-void x86::write_string(int mem8_loc, string str)
-{
-    auto s = str.c_str();
-    printf("%s\n", s);
-    for (int i = 0; i < str.length(); i++) {
-        st8_phys(mem8_loc++, s[i] & 0xff);
-    }
-    st8_phys(mem8_loc, 0);
-}
-uint8_t x86::ld8_phys(int mem8_loc)
-{
-    return phys_mem8[mem8_loc];
-}
-void x86::st8_phys(int mem8_loc, uint8_t x)
-{
-    phys_mem8[mem8_loc] = x;
-}
-int x86::ld32_phys(int mem8_loc)
-{
-    return phys_mem32[mem8_loc >> 2];
-}
-void x86::st32_phys(int mem8_loc, int x)
-{
-    uint32_t mem8_locu         = mem8_loc;
-    phys_mem32[mem8_locu >> 2] = x;
-}
-void x86::tlb_set_page(int mem8_loc, int page_val, int set_write_tlb, int set_user_tlb)
-{
-    page_val &= -4096;    // only top 20bits matter
-    mem8_loc &= -4096;    // only top 20bits matter
-
-    uint32_t mem8_locu = mem8_loc;
-    int      x         = mem8_locu ^ page_val;    // XOR used to simulate hashing
-    int      i         = mem8_locu >> 12;         // top 20bits point to TLB
-    if (tlb_read_kernel[i] == -1) {
-        if (tlb_pages_count >= 2048) {
-            tlb_flush_all1((i - 1) & 0xfffff);
-        }
-        tlb_pages[tlb_pages_count++] = i;
-    }
-
-    tlb_read_kernel[i] = x;
-
-    if (set_write_tlb) {
-        tlb_write_kernel[i] = x;
-    } else {
-        tlb_write_kernel[i] = -1;
-    }
-
-    if (set_user_tlb) {
-        tlb_read_user[i] = x;
-        if (set_write_tlb) {
-            tlb_write_user[i] = x;
-        } else {
-            tlb_write_user[i] = -1;
-        }
-    } else {
-        tlb_read_user[i]  = -1;
-        tlb_write_user[i] = -1;
-    }
-}
-void x86::tlb_flush_page(int mem8_loc)
-{
-    uint32_t mem8_locu = mem8_loc;
-    int      i         = mem8_locu >> 12;
-    tlb_clear(i);
-}
-void x86::tlb_flush_all()
-{
-    int n = tlb_pages_count;
-
-    for (int j = 0; j < n; j++) {
-        int i = tlb_pages[j];
-        tlb_clear(i);
-    }
-    tlb_pages_count = 0;
-}
-void x86::tlb_flush_all1(int la)
-{
-    int n     = tlb_pages_count;
-    int new_n = 0;
-
-    for (int j = 0; j < n; j++) {
-        int i = tlb_pages[j];
-        if (i == la) {
-            tlb_pages[new_n++] = i;
-        } else {
-            tlb_clear(i);
-        }
-    }
-    tlb_pages_count = new_n;
-}
-void x86::tlb_clear(int i)
-{
-    tlb_read_kernel[i]  = -1;
-    tlb_write_kernel[i] = -1;
-    tlb_read_user[i]    = -1;
-    tlb_write_user[i]   = -1;
-}
 void x86::load(uint8_t *bin, int offset, int size)
 {
     printf("x86::load %x\n", offset);
@@ -175,8 +76,8 @@ x86Internal::~x86Internal()
 int x86Internal::file_read()
 {
     logcheck = true;
-    filename = "linux_boot_logs/log16.txt";
     stepinfo = false;
+    filename = "linux_boot_logs/log16.txt";
 
     if (logcheck) {
         string   line;
@@ -184,8 +85,6 @@ int x86Internal::file_read()
         if (!input_file.is_open()) {
             logcheck = false;
             stepinfo = false;
-            // cerr << "Could not open the file - '" << filename << "'" << endl;
-            // return EXIT_FAILURE;
         }
 
         while (getline(input_file, line)) {
@@ -279,8 +178,8 @@ void x86Internal::cpu_dump(int OPbyte)
                 regs[0], regs[1], regs[2], regs[3], eflags, regs[4], regs[5], regs[6], regs[7]);
         // printf("%s", buf2);
         char buf3[1000];
-        sprintf(buf3, "TSC=%08X OP=%02X OP2=%02X SRC=%08X DST=%08X DST2=%08X", cycle_count, _op, _op2, cc_src, cc_dst,
-                cc_dst2);
+        sprintf(buf3, "TSC=%08X OP=%02X OP2=%02X SRC=%08X DST=%08X DST2=%08X", cycle_count, cc_op, cc_op2, cc_src,
+                cc_dst, cc_dst2);
         // printf("%s", buf3);
         char buf4[1000];
         sprintf(buf4, "CPL=%d CR0=%08X CR2=%08X CR3=%08X CR4=%08X", cpl, cr0, cr2, cr3, cr4);
@@ -355,7 +254,7 @@ int x86Internal::exec(int N_cycles)
 
     return exit_code;
 }
-int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
+int x86Internal::init(int _N_cycles)
 {
     N_cycles        = _N_cycles;
     cycles_left     = N_cycles;
@@ -367,22 +266,17 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
     conditional_var = 0;
     exit_code       = 256;
 
-    // _src        = cccc_src;
-    // cc_dst        = cccc_dst;
-    _op         = cc_op;
-    _op2        = cc_op2;
-    // cc_dst2       = cccc_dst2;
-
     change_permission_level(cpl);
-    if (halted) {
-        if (hard_irq != 0 && (eflags & 0x00000200)) {
-            halted = 0;
-        } else {
-            return 257;
-        }
-    }
+    if (check_halted())
+        return 257;
     init_segment_local_vars();
     check_interrupt();
+    return 0;
+}
+int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
+{
+    if (init(_N_cycles))
+        return 257;
 
     do {
         eip                  = (eip + physmem8_ptr - initial_mem_ptr) >> 0;
@@ -410,7 +304,7 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
                         uint32_t mem8_locu = mem8_loc;
                         phys_mem8[physmem8_ptr + y] =
                             (((last_tlb_val = tlb_read[mem8_locu >> 12]) == -1) ? __ld_8bits_mem8_read()
-                                                                                  : phys_mem8[mem8_loc ^ last_tlb_val]);
+                                                                                : phys_mem8[mem8_loc ^ last_tlb_val]);
                     }
                     physmem8_ptr++;
                 }
@@ -423,13 +317,8 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
         CS_flags = init_CS_flags;
         OPbyte |= CS_flags & 0x0100;
 
-        for (;;) {
-
-            if (count == 13011849) {    // 1129911
-                // printf("\n\nstop\n");
-            }
+        while (true) {
             cpu_dump(OPbyte);
-
             switch (OPbyte) {
 
                 case 0x66:    //   Operand-size override prefix
@@ -568,7 +457,7 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
                         uint32_t mem8_locu = mem8_loc;
                         int      idx       = mem8_locu >> 12;
                         x                  = (((last_tlb_val = tlb_read[idx]) == -1) ? __ld_8bits_mem8_read()
-                                                                                       : phys_mem8[mem8_loc ^ last_tlb_val]);
+                                                                                     : phys_mem8[mem8_loc ^ last_tlb_val]);
                     }
                     reg_idx1           = (mem8 >> 3) & 7;
                     last_tlb_val       = (reg_idx1 & 4) << 1;
@@ -761,7 +650,7 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
                         {
                             cc_src = y;
                             cc_dst = regs[reg_idx0] = (regs[reg_idx0] + cc_src) >> 0;
-                            _op                   = 2;
+                            cc_op                   = 2;
                         }
                     } else {
                         mem8_loc = segment_translation(mem8);
@@ -769,7 +658,7 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
                         {
                             cc_src = y;
                             cc_dst = x = (x + cc_src) >> 0;
-                            _op      = 2;
+                            cc_op      = 2;
                         }
                         st32_mem8_write(x);
                     }
@@ -802,7 +691,7 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
                         {
                             cc_src = y;
                             cc_dst = (regs[reg_idx0] - cc_src) >> 0;
-                            _op  = 8;
+                            cc_op  = 8;
                         }
                     } else {
                         mem8_loc = segment_translation(mem8);
@@ -810,7 +699,7 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
                         {
                             cc_src = y;
                             cc_dst = (x - cc_src) >> 0;
-                            _op  = 8;
+                            cc_op  = 8;
                         }
                     }
                     goto EXEC_LOOP;
@@ -847,7 +736,7 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
                     {
                         cc_src = y;
                         cc_dst = regs[reg_idx1] = (regs[reg_idx1] + cc_src) >> 0;
-                        _op                   = 2;
+                        cc_op                   = 2;
                     }
                     goto EXEC_LOOP;
                 case 0x0b:    // OR Evqp Gvqp Logical Inclusive OR
@@ -880,7 +769,7 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
                     {
                         cc_src = y;
                         cc_dst = (regs[reg_idx1] - cc_src) >> 0;
-                        _op  = 8;
+                        cc_op  = 8;
                     }
                     goto EXEC_LOOP;
                 case 0x04:    // ADD Ib AL Add
@@ -904,7 +793,7 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
                     {
                         cc_src = y;
                         cc_dst = regs[0] = (regs[0] + cc_src) >> 0;
-                        _op            = 2;
+                        cc_op            = 2;
                     }
                     goto EXEC_LOOP;
                 case 0x0d:    // OR Ivds rAX Logical Inclusive OR
@@ -928,7 +817,7 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
                 }
                     {
                         cc_dst = regs[0] = regs[0] ^ y;
-                        _op            = 14;
+                        cc_op            = 14;
                     }
                     goto EXEC_LOOP;
                 case 0x3d:    // CMP rAX  Compare Two Operands
@@ -940,7 +829,7 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
                     {
                         cc_src = y;
                         cc_dst = (regs[0] - cc_src) >> 0;
-                        _op  = 8;
+                        cc_op  = 8;
                     }
                     goto EXEC_LOOP;
                 case 0x80:    // ADD Ib Eb Add
@@ -983,7 +872,7 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
                         {
                             cc_src = y;
                             cc_dst = (x - cc_src) >> 0;
-                            _op  = 8;
+                            cc_op  = 8;
                         }
                     } else {
                         if ((mem8 >> 6) == 3) {
@@ -1021,7 +910,7 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
                         {
                             cc_src = y;
                             cc_dst = (x - cc_src) >> 0;
-                            _op  = 8;
+                            cc_op  = 8;
                         }
                     } else {
                         if ((mem8 >> 6) == 3) {
@@ -1047,12 +936,12 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
                 case 0x47:    // REX.RXB   REX.R, REX.X and REX.B combination
                     reg_idx1 = OPbyte & 7;
                     {
-                        if (_op < 25) {
-                            _op2  = _op;
+                        if (cc_op < 25) {
+                            cc_op2  = cc_op;
                             cc_dst2 = cc_dst;
                         }
                         regs[reg_idx1] = cc_dst = (regs[reg_idx1] + 1) >> 0;
-                        _op                   = 27;
+                        cc_op                   = 27;
                     }
                     goto EXEC_LOOP;
                 case 0x48:    // DEC  Zv Decrement by 1
@@ -1065,12 +954,12 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
                 case 0x4f:    // REX.WRXB   REX.W, REX.R, REX.X and REX.B combination
                     reg_idx1 = OPbyte & 7;
                     {
-                        if (_op < 25) {
-                            _op2  = _op;
+                        if (cc_op < 25) {
+                            cc_op2  = cc_op;
                             cc_dst2 = cc_dst;
                         }
                         regs[reg_idx1] = cc_dst = (regs[reg_idx1] - 1) >> 0;
-                        _op                   = 30;
+                        cc_op                   = 30;
                     }
                     goto EXEC_LOOP;
                 case 0x6b:    // IMUL Evqp Gvqp Signed Multiply
@@ -1114,7 +1003,7 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
                     y        = (regs[reg_idx1 & 3] >> ((reg_idx1 & 4) << 1));
                     {
                         cc_dst = (((x & y) << 24) >> 24);
-                        _op  = 12;
+                        cc_op  = 12;
                     }
                     goto EXEC_LOOP;
                 case 0x85:    // TEST Evqp  Logical Compare
@@ -1128,14 +1017,14 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
                     y = regs[(mem8 >> 3) & 7];
                     {
                         cc_dst = x & y;
-                        _op  = 14;
+                        cc_op  = 14;
                     }
                     goto EXEC_LOOP;
                 case 0xa8:    // TEST AL  Logical Compare
                     y = phys_mem8[physmem8_ptr++];
                     {
                         cc_dst = (((regs[0] & y) << 24) >> 24);
-                        _op  = 12;
+                        cc_op  = 12;
                     }
                     goto EXEC_LOOP;
                 case 0xa9:    // TEST rAX  Logical Compare
@@ -1146,7 +1035,7 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
                 }
                     {
                         cc_dst = regs[0] & y;
-                        _op  = 14;
+                        cc_op  = 14;
                     }
                     goto EXEC_LOOP;
                 case 0xf6:    // TEST Eb  Logical Compare
@@ -1164,7 +1053,7 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
                             y = phys_mem8[physmem8_ptr++];
                             {
                                 cc_dst = (((x & y) << 24) >> 24);
-                                _op  = 12;
+                                cc_op  = 12;
                             }
                             break;
                         case 2:
@@ -1252,7 +1141,7 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
                             }
                             {
                                 cc_dst = x & y;
-                                _op  = 14;
+                                cc_op  = 14;
                             }
                             break;
                         case 2:
@@ -1620,23 +1509,23 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
                             if ((mem8 >> 6) == 3) {
                                 reg_idx0 = mem8 & 7;
                                 {
-                                    if (_op < 25) {
-                                        _op2  = _op;
+                                    if (cc_op < 25) {
+                                        cc_op2  = cc_op;
                                         cc_dst2 = cc_dst;
                                     }
                                     regs[reg_idx0] = cc_dst = (regs[reg_idx0] + 1) >> 0;
-                                    _op                   = 27;
+                                    cc_op                   = 27;
                                 }
                             } else {
                                 mem8_loc = segment_translation(mem8);
                                 x        = ld_32bits_mem8_write();
                                 {
-                                    if (_op < 25) {
-                                        _op2  = _op;
+                                    if (cc_op < 25) {
+                                        cc_op2  = cc_op;
                                         cc_dst2 = cc_dst;
                                     }
                                     x = cc_dst = (x + 1) >> 0;
-                                    _op      = 27;
+                                    cc_op      = 27;
                                 }
                                 st32_mem8_write(x);
                             }
@@ -1645,23 +1534,23 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
                             if ((mem8 >> 6) == 3) {
                                 reg_idx0 = mem8 & 7;
                                 {
-                                    if (_op < 25) {
-                                        _op2  = _op;
+                                    if (cc_op < 25) {
+                                        cc_op2  = cc_op;
                                         cc_dst2 = cc_dst;
                                     }
                                     regs[reg_idx0] = cc_dst = (regs[reg_idx0] - 1) >> 0;
-                                    _op                   = 30;
+                                    cc_op                   = 30;
                                 }
                             } else {
                                 mem8_loc = segment_translation(mem8);
                                 x        = ld_32bits_mem8_write();
                                 {
-                                    if (_op < 25) {
-                                        _op2  = _op;
+                                    if (cc_op < 25) {
+                                        cc_op2  = cc_op;
                                         cc_dst2 = cc_dst;
                                     }
                                     x = cc_dst = (x - 1) >> 0;
-                                    _op      = 30;
+                                    cc_op      = 30;
                                 }
                                 st32_mem8_write(x);
                             }
@@ -1814,7 +1703,7 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
                     }
                     goto EXEC_LOOP;
                 case 0x78:    // JS Jbs  Jump short if sign (SF=1)
-                    if ((_op == 24 ? ((cc_src >> 7) & 1) : (cc_dst < 0))) {
+                    if ((cc_op == 24 ? ((cc_src >> 7) & 1) : (cc_dst < 0))) {
                         x            = ((phys_mem8[physmem8_ptr++] << 24) >> 24);
                         physmem8_ptr = (physmem8_ptr + x) >> 0;
                     } else {
@@ -1822,7 +1711,7 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
                     }
                     goto EXEC_LOOP;
                 case 0x79:    // JNS Jbs  Jump short if not sign (SF=0)
-                    if (!(_op == 24 ? ((cc_src >> 7) & 1) : (cc_dst < 0))) {
+                    if (!(cc_op == 24 ? ((cc_src >> 7) & 1) : (cc_dst < 0))) {
                         x            = ((phys_mem8[physmem8_ptr++] << 24) >> 24);
                         physmem8_ptr = (physmem8_ptr + x) >> 0;
                     } else {
@@ -2016,17 +1905,17 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
                 case 0xf5:    // CMC   Complement Carry Flag
                     cc_src = get_conditional_flags() ^ 0x0001;
                     cc_dst = ((cc_src >> 6) & 1) ^ 1;
-                    _op  = 24;
+                    cc_op  = 24;
                     goto EXEC_LOOP;
                 case 0xf8:    // CLC   Clear Carry Flag
                     cc_src = get_conditional_flags() & ~0x0001;
                     cc_dst = ((cc_src >> 6) & 1) ^ 1;
-                    _op  = 24;
+                    cc_op  = 24;
                     goto EXEC_LOOP;
                 case 0xf9:    // STC   Set Carry Flag
                     cc_src = get_conditional_flags() | 0x0001;
                     cc_dst = ((cc_src >> 6) & 1) ^ 1;
-                    _op  = 24;
+                    cc_op  = 24;
                     goto EXEC_LOOP;
                 case 0xfc:    // CLD   Clear Direction Flag
                     df = 1;
@@ -2053,7 +1942,7 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
                 case 0x9e:    // SAHF AH  Store AH into Flags
                     cc_src = ((regs[0] >> 8) & (0x0080 | 0x0040 | 0x0010 | 0x0004 | 0x0001)) | (check_overflow() << 11);
                     cc_dst = ((cc_src >> 6) & 1) ^ 1;
-                    _op  = 24;
+                    cc_op  = 24;
                     goto EXEC_LOOP;
                 case 0x9f:    // LAHF  AH Load Status Flags into AH Register
                     x = get_FLAGS();
@@ -3218,14 +3107,14 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
                             y = regs[(mem8 >> 3) & 7];
                             {
                                 cc_dst = (((x & y) << 16) >> 16);
-                                _op  = 13;
+                                cc_op  = 13;
                             }
                             goto EXEC_LOOP;
                         case 0x1a9:    // TEST rAX  Logical Compare
                             y = ld16_mem8_direct();
                             {
                                 cc_dst = (((regs[0] & y) << 16) >> 16);
-                                _op  = 13;
+                                cc_op  = 13;
                             }
                             goto EXEC_LOOP;
                         case 0x1f7:    // TEST Evqp  Logical Compare
@@ -3242,7 +3131,7 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
                                     y = ld16_mem8_direct();
                                     {
                                         cc_dst = (((x & y) << 16) >> 16);
-                                        _op  = 13;
+                                        cc_op  = 13;
                                     }
                                     break;
                                 case 2:
@@ -4182,15 +4071,21 @@ int x86Internal::Instruction(int _N_cycles, ErrorInfo interrupt)
 OUTER_LOOP:
 
     cycle_count += (N_cycles - cycles_left);
-    eip     = (eip + physmem8_ptr - initial_mem_ptr);
-    // cccc_src  = cc_src;
-    // cccc_dst  = cc_dst;
-    cc_op   = _op;
-    cc_op2  = _op2;
-    // cccc_dst2 = cc_dst2;
+    eip = (eip + physmem8_ptr - initial_mem_ptr);
     return exit_code;
 }
 
+int x86Internal::check_halted()
+{
+    if (halted) {
+        if (hard_irq != 0 && (eflags & 0x00000200)) {
+            halted = 0;
+        } else {
+            return 257;
+        }
+    }
+    return 0;
+}
 void x86Internal::init_segment_local_vars()
 {
     CS_base = segs[1].base;    // CS
@@ -4234,7 +4129,7 @@ int x86Internal::ld_8bits_mem8_read()
     int      last_tlb_val;
     uint32_t mem8_locu = mem8_loc;
     return (((last_tlb_val = tlb_read[mem8_locu >> 12]) == -1) ? __ld_8bits_mem8_read()
-                                                                 : phys_mem8[mem8_loc ^ last_tlb_val]);
+                                                               : phys_mem8[mem8_loc ^ last_tlb_val]);
 }
 
 int x86Internal::__ld_16bits_mem8_read()
@@ -4250,7 +4145,7 @@ int x86Internal::ld_16bits_mem8_read()
     int      last_tlb_val;
     uint32_t mem8_locu = mem8_loc;
     return (((last_tlb_val = tlb_read[mem8_locu >> 12]) | mem8_loc) & 1 ? __ld_16bits_mem8_read()
-                                                                          : phys_mem16[(mem8_loc ^ last_tlb_val) >> 1]);
+                                                                        : phys_mem16[(mem8_loc ^ last_tlb_val) >> 1]);
 }
 
 int x86Internal::__ld_32bits_mem8_read()
@@ -4270,7 +4165,7 @@ int x86Internal::ld_32bits_mem8_read()
     int      last_tlb_val;
     uint32_t mem8_locu = mem8_loc;
     return (((last_tlb_val = tlb_read[mem8_locu >> 12]) | mem8_loc) & 3 ? __ld_32bits_mem8_read()
-                                                                          : phys_mem32[(mem8_loc ^ last_tlb_val) >> 2]);
+                                                                        : phys_mem32[(mem8_loc ^ last_tlb_val) >> 2]);
 }
 
 int x86Internal::__ld_8bits_mem8_write()
@@ -4285,7 +4180,7 @@ int x86Internal::ld_8bits_mem8_write()
     int      tlb_lookup;
     uint32_t mem8_locu = mem8_loc;
     return ((tlb_lookup = tlb_write[mem8_locu >> 12]) == -1) ? __ld_8bits_mem8_write()
-                                                               : phys_mem8[mem8_loc ^ tlb_lookup];
+                                                             : phys_mem8[mem8_loc ^ tlb_lookup];
 }
 int x86Internal::__ld_16bits_mem8_write()
 {
@@ -4300,7 +4195,7 @@ int x86Internal::ld_16bits_mem8_write()
     int      tlb_lookup;
     uint32_t mem8_locu = mem8_loc;
     return ((tlb_lookup = tlb_write[mem8_locu >> 12]) | mem8_loc) & 1 ? __ld_16bits_mem8_write()
-                                                                        : phys_mem16[(mem8_loc ^ tlb_lookup) >> 1];
+                                                                      : phys_mem16[(mem8_loc ^ tlb_lookup) >> 1];
 }
 int x86Internal::__ld_32bits_mem8_write()
 {
@@ -4319,7 +4214,7 @@ int x86Internal::ld_32bits_mem8_write()
     int      tlb_lookup;
     uint32_t mem8_locu = mem8_loc;
     return ((tlb_lookup = tlb_write[mem8_locu >> 12]) | mem8_loc) & 3 ? __ld_32bits_mem8_write()
-                                                                        : phys_mem32[(mem8_loc ^ tlb_lookup) >> 2];
+                                                                      : phys_mem32[(mem8_loc ^ tlb_lookup) >> 2];
 }
 
 int x86Internal::__ld8_mem8_kernel_read()
@@ -4833,49 +4728,49 @@ int x86Internal::do_32bit_math(int conditional_var, int Yb, int Zb)
     switch (conditional_var) {
         case 0:
             cc_src = Zb;
-            Yb   = (Yb + Zb) >> 0;
+            Yb     = (Yb + Zb) >> 0;
             cc_dst = Yb;
-            _op  = 2;
+            cc_op  = 2;
             break;
         case 1:
-            Yb   = Yb | Zb;
+            Yb     = Yb | Zb;
             cc_dst = Yb;
-            _op  = 14;
+            cc_op  = 14;
             break;
         case 2:
-            ac   = check_carry();
+            ac     = check_carry();
             cc_src = Zb;
-            Yb   = (Yb + Zb + ac) >> 0;
+            Yb     = (Yb + Zb + ac) >> 0;
             cc_dst = Yb;
-            _op  = ac ? 5 : 2;
+            cc_op  = ac ? 5 : 2;
             break;
         case 3:
-            ac   = check_carry();
+            ac     = check_carry();
             cc_src = Zb;
-            Yb   = (Yb - Zb - ac) >> 0;
+            Yb     = (Yb - Zb - ac) >> 0;
             cc_dst = Yb;
-            _op  = ac ? 11 : 8;
+            cc_op  = ac ? 11 : 8;
             break;
         case 4:
-            Yb   = Yb & Zb;
+            Yb     = Yb & Zb;
             cc_dst = Yb;
-            _op  = 14;
+            cc_op  = 14;
             break;
         case 5:
             cc_src = Zb;
-            Yb   = (Yb - Zb) >> 0;
+            Yb     = (Yb - Zb) >> 0;
             cc_dst = Yb;
-            _op  = 8;
+            cc_op  = 8;
             break;
         case 6:
-            Yb   = Yb ^ Zb;
+            Yb     = Yb ^ Zb;
             cc_dst = Yb;
-            _op  = 14;
+            cc_op  = 14;
             break;
         case 7:
             cc_src = Zb;
             cc_dst = (Yb - Zb) >> 0;
-            _op  = 8;
+            cc_op  = 8;
             break;
         default:
             throw "arith: invalid op";
@@ -4888,49 +4783,49 @@ int x86Internal::do_16bit_math(int conditional_var, int Yb, int Zb)
     switch (conditional_var) {
         case 0:
             cc_src = Zb;
-            Yb   = (((Yb + Zb) << 16) >> 16);
+            Yb     = (((Yb + Zb) << 16) >> 16);
             cc_dst = Yb;
-            _op  = 1;
+            cc_op  = 1;
             break;
         case 1:
-            Yb   = (((Yb | Zb) << 16) >> 16);
+            Yb     = (((Yb | Zb) << 16) >> 16);
             cc_dst = Yb;
-            _op  = 13;
+            cc_op  = 13;
             break;
         case 2:
-            ac   = check_carry();
+            ac     = check_carry();
             cc_src = Zb;
-            Yb   = (((Yb + Zb + ac) << 16) >> 16);
+            Yb     = (((Yb + Zb + ac) << 16) >> 16);
             cc_dst = Yb;
-            _op  = ac ? 4 : 1;
+            cc_op  = ac ? 4 : 1;
             break;
         case 3:
-            ac   = check_carry();
+            ac     = check_carry();
             cc_src = Zb;
-            Yb   = (((Yb - Zb - ac) << 16) >> 16);
+            Yb     = (((Yb - Zb - ac) << 16) >> 16);
             cc_dst = Yb;
-            _op  = ac ? 10 : 7;
+            cc_op  = ac ? 10 : 7;
             break;
         case 4:
-            Yb   = (((Yb & Zb) << 16) >> 16);
+            Yb     = (((Yb & Zb) << 16) >> 16);
             cc_dst = Yb;
-            _op  = 13;
+            cc_op  = 13;
             break;
         case 5:
             cc_src = Zb;
-            Yb   = (((Yb - Zb) << 16) >> 16);
+            Yb     = (((Yb - Zb) << 16) >> 16);
             cc_dst = Yb;
-            _op  = 7;
+            cc_op  = 7;
             break;
         case 6:
-            Yb   = (((Yb ^ Zb) << 16) >> 16);
+            Yb     = (((Yb ^ Zb) << 16) >> 16);
             cc_dst = Yb;
-            _op  = 13;
+            cc_op  = 13;
             break;
         case 7:
             cc_src = Zb;
             cc_dst = (((Yb - Zb) << 16) >> 16);
-            _op  = 7;
+            cc_op  = 7;
             break;
         default:
             throw "arith: invalid op";
@@ -4943,49 +4838,49 @@ int x86Internal::do_8bit_math(int conditional_var, int Yb, int Zb)
     switch (conditional_var) {
         case 0:
             cc_src = Zb;
-            Yb   = (((Yb + Zb) << 24) >> 24);
+            Yb     = (((Yb + Zb) << 24) >> 24);
             cc_dst = Yb;
-            _op  = 0;
+            cc_op  = 0;
             break;
         case 1:
-            Yb   = (((Yb | Zb) << 24) >> 24);
+            Yb     = (((Yb | Zb) << 24) >> 24);
             cc_dst = Yb;
-            _op  = 12;
+            cc_op  = 12;
             break;
         case 2:
-            ac   = check_carry();
+            ac     = check_carry();
             cc_src = Zb;
-            Yb   = (((Yb + Zb + ac) << 24) >> 24);
+            Yb     = (((Yb + Zb + ac) << 24) >> 24);
             cc_dst = Yb;
-            _op  = ac ? 3 : 0;
+            cc_op  = ac ? 3 : 0;
             break;
         case 3:
-            ac   = check_carry();
+            ac     = check_carry();
             cc_src = Zb;
-            Yb   = (((Yb - Zb - ac) << 24) >> 24);
+            Yb     = (((Yb - Zb - ac) << 24) >> 24);
             cc_dst = Yb;
-            _op  = ac ? 9 : 6;
+            cc_op  = ac ? 9 : 6;
             break;
         case 4:
-            Yb   = (((Yb & Zb) << 24) >> 24);
+            Yb     = (((Yb & Zb) << 24) >> 24);
             cc_dst = Yb;
-            _op  = 12;
+            cc_op  = 12;
             break;
         case 5:
             cc_src = Zb;
-            Yb   = (((Yb - Zb) << 24) >> 24);
+            Yb     = (((Yb - Zb) << 24) >> 24);
             cc_dst = Yb;
-            _op  = 6;
+            cc_op  = 6;
             break;
         case 6:
-            Yb   = (((Yb ^ Zb) << 24) >> 24);
+            Yb     = (((Yb ^ Zb) << 24) >> 24);
             cc_dst = Yb;
-            _op  = 12;
+            cc_op  = 12;
             break;
         case 7:
             cc_src = Zb;
             cc_dst = (((Yb - Zb) << 24) >> 24);
-            _op  = 6;
+            cc_op  = 6;
             break;
         default:
             throw "arith: invalid op";
@@ -4995,42 +4890,42 @@ int x86Internal::do_8bit_math(int conditional_var, int Yb, int Zb)
 
 int x86Internal::increment_16bit(int x)
 {
-    if (_op < 25) {
-        _op2  = _op;
+    if (cc_op < 25) {
+        cc_op2  = cc_op;
         cc_dst2 = cc_dst;
     }
     cc_dst = (((x + 1) << 16) >> 16);
-    _op  = 26;
+    cc_op  = 26;
     return cc_dst;
 }
 int x86Internal::decrement_16bit(int x)
 {
-    if (_op < 25) {
-        _op2  = _op;
+    if (cc_op < 25) {
+        cc_op2  = cc_op;
         cc_dst2 = cc_dst;
     }
     cc_dst = (((x - 1) << 16) >> 16);
-    _op  = 29;
+    cc_op  = 29;
     return cc_dst;
 }
 int x86Internal::increment_8bit(int x)
 {
-    if (_op < 25) {
-        _op2  = _op;
+    if (cc_op < 25) {
+        cc_op2  = cc_op;
         cc_dst2 = cc_dst;
     }
     cc_dst = (((x + 1) << 24) >> 24);
-    _op  = 25;
+    cc_op  = 25;
     return cc_dst;
 }
 int x86Internal::decrement_8bit(int x)
 {
-    if (_op < 25) {
-        _op2  = _op;
+    if (cc_op < 25) {
+        cc_op2  = cc_op;
         cc_dst2 = cc_dst;
     }
     cc_dst = (((x - 1) << 24) >> 24);
-    _op  = 28;
+    cc_op  = 28;
     return cc_dst;
 }
 
@@ -5042,24 +4937,24 @@ int x86Internal::shift8(int conditional_var, int Yb, int Zb)
             if (Zb & 0x1f) {
                 Zb &= 0x7;
                 Yb &= 0xff;
-                kc   = Yb;
-                Yb   = (Yb << Zb) | (Yb >> (8 - Zb));
-                cc_src = conditional_flags_for_rot_shift_ops();
+                kc     = Yb;
+                Yb     = (Yb << Zb) | (Yb >> (8 - Zb));
+                cc_src = conditional_flags_for_rot_shiftcc_ops();
                 cc_src |= (Yb & 0x0001) | (((kc ^ Yb) << 4) & 0x0800);
                 cc_dst = ((cc_src >> 6) & 1) ^ 1;
-                _op  = 24;
+                cc_op  = 24;
             }
             break;
         case 1:
             if (Zb & 0x1f) {
                 Zb &= 0x7;
                 Yb &= 0xff;
-                kc   = Yb;
-                Yb   = (Yb >> Zb) | (Yb << (8 - Zb));
-                cc_src = conditional_flags_for_rot_shift_ops();
+                kc     = Yb;
+                Yb     = (Yb >> Zb) | (Yb << (8 - Zb));
+                cc_src = conditional_flags_for_rot_shiftcc_ops();
                 cc_src |= ((Yb >> 7) & 0x0001) | (((kc ^ Yb) << 4) & 0x0800);
                 cc_dst = ((cc_src >> 6) & 1) ^ 1;
-                _op  = 24;
+                cc_op  = 24;
             }
             break;
         case 2:
@@ -5071,10 +4966,10 @@ int x86Internal::shift8(int conditional_var, int Yb, int Zb)
                 Yb = (Yb << Zb) | (ac << (Zb - 1));
                 if (Zb > 1)
                     Yb |= kc >> (9 - Zb);
-                cc_src = conditional_flags_for_rot_shift_ops();
+                cc_src = conditional_flags_for_rot_shiftcc_ops();
                 cc_src |= (((kc ^ Yb) << 4) & 0x0800) | ((kc >> (8 - Zb)) & 0x0001);
                 cc_dst = ((cc_src >> 6) & 1) ^ 1;
-                _op  = 24;
+                cc_op  = 24;
             }
             break;
         case 3:
@@ -5086,10 +4981,10 @@ int x86Internal::shift8(int conditional_var, int Yb, int Zb)
                 Yb = (Yb >> Zb) | (ac << (8 - Zb));
                 if (Zb > 1)
                     Yb |= kc << (9 - Zb);
-                cc_src = conditional_flags_for_rot_shift_ops();
+                cc_src = conditional_flags_for_rot_shiftcc_ops();
                 cc_src |= (((kc ^ Yb) << 4) & 0x0800) | ((kc >> (Zb - 1)) & 0x0001);
                 cc_dst = ((cc_src >> 6) & 1) ^ 1;
-                _op  = 24;
+                cc_op  = 24;
             }
             break;
         case 4:
@@ -5098,7 +4993,7 @@ int x86Internal::shift8(int conditional_var, int Yb, int Zb)
             if (Zb) {
                 cc_src = Yb << (Zb - 1);
                 cc_dst = Yb = (((Yb << Zb) << 24) >> 24);
-                _op       = 15;
+                cc_op       = 15;
             }
             break;
         case 5:
@@ -5107,16 +5002,16 @@ int x86Internal::shift8(int conditional_var, int Yb, int Zb)
                 Yb &= 0xff;
                 cc_src = Yb >> (Zb - 1);
                 cc_dst = Yb = (((Yb >> Zb) << 24) >> 24);
-                _op       = 18;
+                cc_op       = 18;
             }
             break;
         case 7:
             Zb &= 0x1f;
             if (Zb) {
-                Yb   = (Yb << 24) >> 24;
+                Yb     = (Yb << 24) >> 24;
                 cc_src = Yb >> (Zb - 1);
                 cc_dst = Yb = (((Yb >> Zb) << 24) >> 24);
-                _op       = 18;
+                cc_op       = 18;
             }
             break;
         default:
@@ -5132,24 +5027,24 @@ int x86Internal::shift16(int conditional_var, int Yb, int Zb)
             if (Zb & 0x1f) {
                 Zb &= 0xf;
                 Yb &= 0xffff;
-                kc   = Yb;
-                Yb   = (Yb << Zb) | (Yb >> (16 - Zb));
-                cc_src = conditional_flags_for_rot_shift_ops();
+                kc     = Yb;
+                Yb     = (Yb << Zb) | (Yb >> (16 - Zb));
+                cc_src = conditional_flags_for_rot_shiftcc_ops();
                 cc_src |= (Yb & 0x0001) | (((kc ^ Yb) >> 4) & 0x0800);
                 cc_dst = ((cc_src >> 6) & 1) ^ 1;
-                _op  = 24;
+                cc_op  = 24;
             }
             break;
         case 1:
             if (Zb & 0x1f) {
                 Zb &= 0xf;
                 Yb &= 0xffff;
-                kc   = Yb;
-                Yb   = (Yb >> Zb) | (Yb << (16 - Zb));
-                cc_src = conditional_flags_for_rot_shift_ops();
+                kc     = Yb;
+                Yb     = (Yb >> Zb) | (Yb << (16 - Zb));
+                cc_src = conditional_flags_for_rot_shiftcc_ops();
                 cc_src |= ((Yb >> 15) & 0x0001) | (((kc ^ Yb) >> 4) & 0x0800);
                 cc_dst = ((cc_src >> 6) & 1) ^ 1;
-                _op  = 24;
+                cc_op  = 24;
             }
             break;
         case 2:
@@ -5161,10 +5056,10 @@ int x86Internal::shift16(int conditional_var, int Yb, int Zb)
                 Yb = (Yb << Zb) | (ac << (Zb - 1));
                 if (Zb > 1)
                     Yb |= kc >> (17 - Zb);
-                cc_src = conditional_flags_for_rot_shift_ops();
+                cc_src = conditional_flags_for_rot_shiftcc_ops();
                 cc_src |= (((kc ^ Yb) >> 4) & 0x0800) | ((kc >> (16 - Zb)) & 0x0001);
                 cc_dst = ((cc_src >> 6) & 1) ^ 1;
-                _op  = 24;
+                cc_op  = 24;
             }
             break;
         case 3:
@@ -5176,10 +5071,10 @@ int x86Internal::shift16(int conditional_var, int Yb, int Zb)
                 Yb = (Yb >> Zb) | (ac << (16 - Zb));
                 if (Zb > 1)
                     Yb |= kc << (17 - Zb);
-                cc_src = conditional_flags_for_rot_shift_ops();
+                cc_src = conditional_flags_for_rot_shiftcc_ops();
                 cc_src |= (((kc ^ Yb) >> 4) & 0x0800) | ((kc >> (Zb - 1)) & 0x0001);
                 cc_dst = ((cc_src >> 6) & 1) ^ 1;
-                _op  = 24;
+                cc_op  = 24;
             }
             break;
         case 4:
@@ -5188,7 +5083,7 @@ int x86Internal::shift16(int conditional_var, int Yb, int Zb)
             if (Zb) {
                 cc_src = Yb << (Zb - 1);
                 cc_dst = Yb = (((Yb << Zb) << 16) >> 16);
-                _op       = 16;
+                cc_op       = 16;
             }
             break;
         case 5:
@@ -5197,16 +5092,16 @@ int x86Internal::shift16(int conditional_var, int Yb, int Zb)
                 Yb &= 0xffff;
                 cc_src = Yb >> (Zb - 1);
                 cc_dst = Yb = (((Yb >> Zb) << 16) >> 16);
-                _op       = 19;
+                cc_op       = 19;
             }
             break;
         case 7:
             Zb &= 0x1f;
             if (Zb) {
-                Yb   = (Yb << 16) >> 16;
+                Yb     = (Yb << 16) >> 16;
                 cc_src = Yb >> (Zb - 1);
                 cc_dst = Yb = (((Yb >> Zb) << 16) >> 16);
-                _op       = 19;
+                cc_op       = 19;
             }
             break;
         default:
@@ -5221,23 +5116,23 @@ int x86Internal::shift32(int conditional_var, uint32_t Yb, int Zb)
         case 0:
             Zb &= 0x1f;
             if (Zb) {
-                kc   = Yb;
-                Yb   = (Yb << Zb) | (Yb >> (32 - Zb));
-                cc_src = conditional_flags_for_rot_shift_ops();
+                kc     = Yb;
+                Yb     = (Yb << Zb) | (Yb >> (32 - Zb));
+                cc_src = conditional_flags_for_rot_shiftcc_ops();
                 cc_src |= (Yb & 0x0001) | (((kc ^ Yb) >> 20) & 0x0800);
                 cc_dst = ((cc_src >> 6) & 1) ^ 1;
-                _op  = 24;
+                cc_op  = 24;
             }
             break;
         case 1:
             Zb &= 0x1f;
             if (Zb) {
-                kc   = Yb;
-                Yb   = (Yb >> Zb) | (Yb << (32 - Zb));
-                cc_src = conditional_flags_for_rot_shift_ops();
+                kc     = Yb;
+                Yb     = (Yb >> Zb) | (Yb << (32 - Zb));
+                cc_src = conditional_flags_for_rot_shiftcc_ops();
                 cc_src |= ((Yb >> 31) & 0x0001) | (((kc ^ Yb) >> 20) & 0x0800);
                 cc_dst = ((cc_src >> 6) & 1) ^ 1;
-                _op  = 24;
+                cc_op  = 24;
             }
             break;
         case 2:
@@ -5248,10 +5143,10 @@ int x86Internal::shift32(int conditional_var, uint32_t Yb, int Zb)
                 Yb = (Yb << Zb) | (ac << (Zb - 1));
                 if (Zb > 1)
                     Yb |= kc >> (33 - Zb);
-                cc_src = conditional_flags_for_rot_shift_ops();
+                cc_src = conditional_flags_for_rot_shiftcc_ops();
                 cc_src |= (((kc ^ Yb) >> 20) & 0x0800) | ((kc >> (32 - Zb)) & 0x0001);
                 cc_dst = ((cc_src >> 6) & 1) ^ 1;
-                _op  = 24;
+                cc_op  = 24;
             }
             break;
         case 3:
@@ -5262,10 +5157,10 @@ int x86Internal::shift32(int conditional_var, uint32_t Yb, int Zb)
                 Yb = (Yb >> Zb) | (ac << (32 - Zb));
                 if (Zb > 1)
                     Yb |= kc << (33 - Zb);
-                cc_src = conditional_flags_for_rot_shift_ops();
+                cc_src = conditional_flags_for_rot_shiftcc_ops();
                 cc_src |= (((kc ^ Yb) >> 20) & 0x0800) | ((kc >> (Zb - 1)) & 0x0001);
                 cc_dst = ((cc_src >> 6) & 1) ^ 1;
-                _op  = 24;
+                cc_op  = 24;
             }
             break;
         case 4:
@@ -5274,7 +5169,7 @@ int x86Internal::shift32(int conditional_var, uint32_t Yb, int Zb)
             if (Zb) {
                 cc_src = Yb << (Zb - 1);
                 cc_dst = Yb = Yb << Zb;
-                _op       = 17;
+                cc_op       = 17;
             }
             break;
         case 5:
@@ -5282,16 +5177,16 @@ int x86Internal::shift32(int conditional_var, uint32_t Yb, int Zb)
             if (Zb) {
                 cc_src = Yb >> (Zb - 1);
                 cc_dst = Yb = Yb >> Zb;
-                _op       = 20;
+                cc_op       = 20;
             }
             break;
         case 7:
             Zb &= 0x1f;
             if (Zb) {
                 int Ybi = Yb;
-                cc_src    = Ybi >> (Zb - 1);
+                cc_src  = Ybi >> (Zb - 1);
                 cc_dst = Yb = Ybi >> Zb;
-                _op       = 20;
+                cc_op       = 20;
             }
             break;
         default:
@@ -5307,21 +5202,21 @@ int x86Internal::op_16_SHRD_SHLD(int conditional_var, int Yb, int Zb, int pc)
     if (pc) {
         if (conditional_var == 0) {
             Zb &= 0xffff;
-            flg  = Zb | (Yb << 16);
+            flg    = Zb | (Yb << 16);
             cc_src = flg >> (32 - pc);
             flg <<= pc;
             if (pc > 16)
                 flg |= Zb << (pc - 16);
             Yb = cc_dst = flg >> 16;
-            _op       = 19;
+            cc_op       = 19;
         } else {
-            flg  = (Yb & 0xffff) | (Zb << 16);
+            flg    = (Yb & 0xffff) | (Zb << 16);
             cc_src = flg >> (pc - 1);
             flg >>= pc;
             if (pc > 16)
                 flg |= Zb << (32 - pc);
             Yb = cc_dst = (((flg) << 16) >> 16);
-            _op       = 19;
+            cc_op       = 19;
         }
     }
     return Yb;
@@ -5330,12 +5225,12 @@ int x86Internal::op_SHLD(int Yb, int Zb, int pc)
 {
     pc &= 0x1f;
     if (pc) {
-        cc_src          = Yb << (pc - 1);
+        cc_src        = Yb << (pc - 1);
         uint32_t Zbu  = Zb;
         uint32_t lval = (Yb << pc);
         uint32_t rval = (Zbu >> (32 - pc));
         cc_dst = Yb = lval | rval;
-        _op       = 17;
+        cc_op       = 17;
     }
     return Yb;
 }
@@ -5343,13 +5238,13 @@ int x86Internal::op_SHRD(int Yb, int Zb, int pc)
 {
     pc &= 0x1f;
     if (pc) {
-        cc_src          = Yb >> (pc - 1);
+        cc_src        = Yb >> (pc - 1);
         uint32_t Zbu  = Zb;
         uint32_t Ybu  = Yb;
         uint32_t lval = (Ybu >> pc);
         uint32_t rval = (Zbu << (32 - pc));
         cc_dst = Yb = lval | rval;
-        _op       = 20;
+        cc_op       = 20;
     }
     return Yb;
 }
@@ -5357,20 +5252,20 @@ void x86Internal::op_16_BT(int Yb, int Zb)
 {
     Zb &= 0xf;
     cc_src = Yb >> Zb;
-    _op  = 19;
+    cc_op  = 19;
 }
 void x86Internal::op_BT(int Yb, int Zb)
 {
     Zb &= 0x1f;
     cc_src = Yb >> Zb;
-    _op  = 20;
+    cc_op  = 20;
 }
 int x86Internal::op_16_BTS_BTR_BTC(int conditional_var, int Yb, int Zb)
 {
     int wc;
     Zb &= 0xf;
     cc_src = Yb >> Zb;
-    wc   = 1 << Zb;
+    wc     = 1 << Zb;
     switch (conditional_var) {
         case 1:
             Yb |= wc;
@@ -5383,7 +5278,7 @@ int x86Internal::op_16_BTS_BTR_BTC(int conditional_var, int Yb, int Zb)
             Yb ^= wc;
             break;
     }
-    _op = 19;
+    cc_op = 19;
     return Yb;
 }
 int x86Internal::op_BTS_BTR_BTC(int conditional_var, int Yb, int Zb)
@@ -5391,7 +5286,7 @@ int x86Internal::op_BTS_BTR_BTC(int conditional_var, int Yb, int Zb)
     int wc;
     Zb &= 0x1f;
     cc_src = Yb >> Zb;
-    wc   = 1 << Zb;
+    wc     = 1 << Zb;
     switch (conditional_var) {
         case 1:
             Yb |= wc;
@@ -5404,7 +5299,7 @@ int x86Internal::op_BTS_BTR_BTC(int conditional_var, int Yb, int Zb)
             Yb ^= wc;
             break;
     }
-    _op = 20;
+    cc_op = 20;
     return Yb;
 }
 int x86Internal::op_16_BSF(int Yb, int Zb)
@@ -5420,7 +5315,7 @@ int x86Internal::op_16_BSF(int Yb, int Zb)
     } else {
         cc_dst = 0;
     }
-    _op = 14;
+    cc_op = 14;
     return Yb;
 }
 int x86Internal::op_BSF(int Yb, int Zb)
@@ -5435,7 +5330,7 @@ int x86Internal::op_BSF(int Yb, int Zb)
     } else {
         cc_dst = 0;
     }
-    _op = 14;
+    cc_op = 14;
     return Yb;
 }
 int x86Internal::op_16_BSR(int Yb, int Zb)
@@ -5451,7 +5346,7 @@ int x86Internal::op_16_BSR(int Yb, int Zb)
     } else {
         cc_dst = 0;
     }
-    _op = 14;
+    cc_op = 14;
     return Yb;
 }
 int x86Internal::op_BSR(int Yb, int Zb)
@@ -5466,7 +5361,7 @@ int x86Internal::op_BSR(int Yb, int Zb)
     } else {
         cc_dst = 0;
     }
-    _op = 14;
+    cc_op = 14;
     return Yb;
 }
 void x86Internal::op_DIV(int OPbyte)
@@ -5587,10 +5482,10 @@ int x86Internal::op_MUL(int a, int OPbyte)
     bool flg;
     a &= 0xff;
     OPbyte &= 0xff;
-    flg  = (regs[0] & 0xff) * (OPbyte & 0xff);
+    flg    = (regs[0] & 0xff) * (OPbyte & 0xff);
     cc_src = flg >> 8;
     cc_dst = (((flg) << 24) >> 24);
-    _op  = 21;
+    cc_op  = 21;
     return flg;
 }
 int x86Internal::op_IMUL(int a, int OPbyte)
@@ -5599,18 +5494,18 @@ int x86Internal::op_IMUL(int a, int OPbyte)
     a      = (((a) << 24) >> 24);
     OPbyte = (((OPbyte) << 24) >> 24);
     flg    = (a * OPbyte) >> 0;
-    cc_dst   = (((flg) << 24) >> 24);
-    cc_src   = (flg != cc_dst) >> 0;
-    _op    = 21;
+    cc_dst = (((flg) << 24) >> 24);
+    cc_src = (flg != cc_dst) >> 0;
+    cc_op  = 21;
     return flg;
 }
 int x86Internal::op_16_MUL(int a, int OPbyte)
 {
     bool flg;
-    flg  = ((a & 0xffff) * (OPbyte & 0xffff)) >> 0;
+    flg    = ((a & 0xffff) * (OPbyte & 0xffff)) >> 0;
     cc_src = flg >> 16;
     cc_dst = (((flg) << 16) >> 16);
-    _op  = 22;
+    cc_op  = 22;
     return flg;
 }
 int x86Internal::op_16_IMUL(int a, int OPbyte)
@@ -5619,17 +5514,17 @@ int x86Internal::op_16_IMUL(int a, int OPbyte)
     a      = (a << 16) >> 16;
     OPbyte = (OPbyte << 16) >> 16;
     flg    = (a * OPbyte) >> 0;
-    cc_dst   = (((flg) << 16) >> 16);
-    cc_src   = (flg != cc_dst) >> 0;
-    _op    = 22;
+    cc_dst = (((flg) << 16) >> 16);
+    cc_src = (flg != cc_dst) >> 0;
+    cc_op  = 22;
     return flg;
 }
-int x86Internal::do_multiply32(int _a, int _OPbyte)
+int x86Internal::do_multiply32(int _a, int cc_opbyte)
 {
     uint32_t Jc, Ic, Tc, Uc, m;
     uint64_t a      = _a;
     uint32_t au     = _a;
-    uint32_t OPbyte = _OPbyte;
+    uint32_t OPbyte = cc_opbyte;
     uint64_t r      = a * OPbyte;
     if (r <= 0xffffffff) {
         v = 0;
@@ -5664,7 +5559,7 @@ int x86Internal::op_MUL32(int a, int OPbyte)
 {
     cc_dst = do_multiply32(a, OPbyte);
     cc_src = v;
-    _op  = 23;
+    cc_op  = 23;
     return cc_dst;
 }
 int x86Internal::op_IMUL32(int a, int OPbyte)
@@ -5689,25 +5584,25 @@ int x86Internal::op_IMUL32(int a, int OPbyte)
     }
     cc_dst = r;
     cc_src = (v - (r >> 31)) >> 0;
-    _op  = 23;
+    cc_op  = 23;
     return r;
 }
 
 bool x86Internal::check_carry()
 {
     bool     rval;
-    int      Yb, current_op;
+    int      Yb, currentcc_op;
     uint32_t reldst;
 
-    if (_op >= 25) {
-        current_op = _op2;
-        reldst     = cc_dst2;
+    if (cc_op >= 25) {
+        currentcc_op = cc_op2;
+        reldst       = cc_dst2;
     } else {
-        current_op = _op;
-        reldst     = cc_dst;
+        currentcc_op = cc_op;
+        reldst       = cc_dst;
     }
 
-    switch (current_op) {
+    switch (currentcc_op) {
         case 0:
             rval = (reldst & 0xff) < (cc_src & 0xff);
             break;
@@ -5775,7 +5670,7 @@ bool x86Internal::check_carry()
             rval = cc_src & 1;
             break;
         default:
-            throw &"GET_CARRY: unsupported cc_op="[_op];
+            throw &"GET_CARRY: unsupported cccc_op="[cc_op];
     }
     return rval;
 }
@@ -5784,7 +5679,7 @@ bool x86Internal::check_overflow()
     bool rval;
     int  Yb;
 
-    switch (_op) {
+    switch (cc_op) {
         case 0:
             Yb   = (cc_dst - cc_src) >> 0;
             rval = (((Yb ^ cc_src ^ -1) & (Yb ^ cc_dst)) >> 7) & 1;
@@ -5877,14 +5772,14 @@ bool x86Internal::check_overflow()
             rval = cc_dst == 0x7fffffff;
             break;
         default:
-            throw &"JO: unsupported cc_op="[_op];
+            throw &"JO: unsupported cccc_op="[cc_op];
     }
     return rval;
 }
 bool x86Internal::check_below_or_equal()
 {
     bool flg = false;
-    switch (_op) {
+    switch (cc_op) {
         case 6:
             flg = ((cc_dst + cc_src) & 0xff) <= (cc_src & 0xff);
             break;
@@ -5906,7 +5801,7 @@ bool x86Internal::check_below_or_equal()
 }
 int x86Internal::check_parity()
 {
-    if (_op == 24) {
+    if (cc_op == 24) {
         return (cc_src >> 2) & 1;
     } else {
         return parity_LUT[cc_dst & 0xff];
@@ -5915,7 +5810,7 @@ int x86Internal::check_parity()
 int x86Internal::check_less_than()
 {
     bool flg;
-    switch (_op) {
+    switch (cc_op) {
         case 6:
             flg = ((cc_dst + cc_src) << 24) < (cc_src << 24);
             break;
@@ -5940,7 +5835,7 @@ int x86Internal::check_less_than()
             flg = ((cc_src >> 7) ^ (cc_src >> 11)) & 1;
             break;
         default:
-            flg = (_op == 24 ? ((cc_src >> 7) & 1) : (cc_dst < 0)) ^ check_overflow();
+            flg = (cc_op == 24 ? ((cc_src >> 7) & 1) : (cc_dst < 0)) ^ check_overflow();
             break;
     }
     return flg;
@@ -5948,7 +5843,7 @@ int x86Internal::check_less_than()
 int x86Internal::check_less_or_equal()
 {
     bool flg;
-    switch (_op) {
+    switch (cc_op) {
         case 6:
             flg = ((cc_dst + cc_src) << 24) <= (cc_src << 24);
             break;
@@ -5973,7 +5868,7 @@ int x86Internal::check_less_or_equal()
             flg = (((cc_src >> 7) ^ (cc_src >> 11)) | (cc_src >> 6)) & 1;
             break;
         default:
-            flg = ((_op == 24 ? ((cc_src >> 7) & 1) : (cc_dst < 0)) ^ check_overflow()) | (cc_dst == 0);
+            flg = ((cc_op == 24 ? ((cc_src >> 7) & 1) : (cc_dst < 0)) ^ check_overflow()) | (cc_dst == 0);
             break;
     }
     return flg;
@@ -5983,7 +5878,7 @@ int x86Internal::check_adjust_flag()
     int Yb;
     int rval;
 
-    switch (_op) {
+    switch (cc_op) {
         case 0:
         case 1:
         case 2:
@@ -6038,7 +5933,7 @@ int x86Internal::check_adjust_flag()
             rval = (cc_dst ^ (cc_dst + 1)) & 0x10;
             break;
         default:
-            throw &"AF: unsupported cc_op="[_op];
+            throw &"AF: unsupported cccc_op="[cc_op];
     }
     return rval;
 }
@@ -6059,7 +5954,7 @@ int x86Internal::check_status_bits_for_jump(int gd)
             flg = check_below_or_equal();
             break;
         case 4:
-            flg = (_op == 24 ? ((cc_src >> 7) & 1) : (cc_dst < 0));
+            flg = (cc_op == 24 ? ((cc_src >> 7) & 1) : (cc_dst < 0));
             break;
         case 5:
             flg = check_parity();
@@ -6075,9 +5970,9 @@ int x86Internal::check_status_bits_for_jump(int gd)
     }
     return flg ^ (gd & 1);
 }
-int x86Internal::conditional_flags_for_rot_shift_ops()
+int x86Internal::conditional_flags_for_rot_shiftcc_ops()
 {
-    return (check_parity() << 2) | ((cc_dst == 0) << 6) | ((_op == 24 ? ((cc_src >> 7) & 1) : (cc_dst < 0)) << 7) |
+    return (check_parity() << 2) | ((cc_dst == 0) << 6) | ((cc_op == 24 ? ((cc_src >> 7) & 1) : (cc_dst < 0)) << 7) |
            check_adjust_flag();
 }
 int x86Internal::get_conditional_flags()
@@ -6085,13 +5980,14 @@ int x86Internal::get_conditional_flags()
     int c0  = (check_carry() << 0);
     int c2  = (check_parity() << 2);
     int c6  = ((cc_dst == 0) << 6);
-    int c7  = ((_op == 24 ? ((cc_src >> 7) & 1) : (cc_dst < 0)) << 7);
+    int c7  = ((cc_op == 24 ? ((cc_src >> 7) & 1) : (cc_dst < 0)) << 7);
     int c11 = (check_overflow() << 11);
     int c   = check_adjust_flag();
     int val = c0 | c2 | c6 | c7 | c11 | c;
     return val;
     // return (check_carry() << 0) | (check_parity() << 2) | ((cc_dst == 0) << 6) |
-    //        ((_op == 24 ? ((cc_src >> 7) & 1) : (cc_dst < 0)) << 7) | (check_overflow() << 11) | check_adjust_flag();
+    //        ((cc_op == 24 ? ((cc_src >> 7) & 1) : (cc_dst < 0)) << 7) | (check_overflow() << 11) |
+    //        check_adjust_flag();
 }
 int x86Internal::get_FLAGS()
 {
@@ -6102,22 +5998,15 @@ int x86Internal::get_FLAGS()
 }
 void x86Internal::set_FLAGS(int flag_bits, int ld)
 {
-    cc_src   = flag_bits & (0x0800 | 0x0080 | 0x0040 | 0x0010 | 0x0004 | 0x0001);
-    cc_dst   = ((cc_src >> 6) & 1) ^ 1;
-    _op    = 24;
+    cc_src = flag_bits & (0x0800 | 0x0080 | 0x0040 | 0x0010 | 0x0004 | 0x0001);
+    cc_dst = ((cc_src >> 6) & 1) ^ 1;
+    cc_op  = 24;
     df     = 1 - (2 * ((flag_bits >> 10) & 1));
     eflags = (eflags & ~ld) | (flag_bits & ld);
 }
 void x86Internal::abort_with_error_code(int intno, int error_code)
 {
     cycle_count += (N_cycles - cycles_left);
-    eip     = eip;
-    // cccc_src  = cc_src;
-    // cccc_dst  = cc_dst;
-    cc_op   = _op;
-    cc_op2  = _op2;
-    // cccc_dst2 = cc_dst2;
-
     ErrorInfo errinf;
     errinf.intno      = intno;
     errinf.error_code = error_code;
@@ -6194,7 +6083,7 @@ void x86Internal::pop_dword_from_stack_incr_ptr()
 }
 int x86Internal::operation_size_function(int eip_offset, int OPbyte)
 {
-    int CS_flags, l, mem8, local_OPbyte_var, base, conditional_var, stride;
+    int CS_flags, l, mem8, localcc_opbyte_var, base, conditional_var, stride;
     int n = 1;
 
     CS_flags = init_CS_flags;
@@ -6228,7 +6117,7 @@ int x86Internal::operation_size_function(int eip_offset, int OPbyte)
                 mem8_loc           = (eip_offset + (n++)) >> 0;
                 uint32_t mem8_locu = mem8_loc;
                 OPbyte             = (((last_tlb_val = tlb_read[mem8_locu >> 12]) == -1) ? __ld_8bits_mem8_read()
-                                                                                           : phys_mem8[mem8_loc ^ last_tlb_val]);
+                                                                                         : phys_mem8[mem8_loc ^ last_tlb_val]);
             } break;
             case 0x67:    //   Address-size override prefix
                 if (init_CS_flags & 0x0080) {
@@ -6241,9 +6130,8 @@ int x86Internal::operation_size_function(int eip_offset, int OPbyte)
                         abort(6);
                     mem8_loc           = (eip_offset + (n++)) >> 0;
                     uint32_t mem8_locu = mem8_loc;
-                    OPbyte =
-                        (((last_tlb_val = tlb_read[mem8_locu >> 12]) == -1) ? __ld_8bits_mem8_read()
-                                                                              : phys_mem8[mem8_loc ^ last_tlb_val]);
+                    OPbyte             = (((last_tlb_val = tlb_read[mem8_locu >> 12]) == -1) ? __ld_8bits_mem8_read()
+                                                                                             : phys_mem8[mem8_loc ^ last_tlb_val]);
                 }
                 break;
             case 0x91:
@@ -6483,7 +6371,7 @@ int x86Internal::operation_size_function(int eip_offset, int OPbyte)
                     mem8_loc           = (eip_offset + (n++)) >> 0;
                     uint32_t mem8_locu = mem8_loc;
                     mem8               = (((last_tlb_val = tlb_read[mem8_locu >> 12]) == -1) ? __ld_8bits_mem8_read()
-                                                                                               : phys_mem8[mem8_loc ^ last_tlb_val]);
+                                                                                             : phys_mem8[mem8_loc ^ last_tlb_val]);
                 }
                 if (CS_flags & 0x0080) {
                     switch (mem8 >> 6) {
@@ -6505,11 +6393,11 @@ int x86Internal::operation_size_function(int eip_offset, int OPbyte)
                                 abort(6);
                             mem8_loc           = (eip_offset + (n++)) >> 0;
                             uint32_t mem8_locu = mem8_loc;
-                            local_OPbyte_var   = (((last_tlb_val = tlb_read[mem8_locu >> 12]) == -1)
+                            localcc_opbyte_var = (((last_tlb_val = tlb_read[mem8_locu >> 12]) == -1)
                                                       ? __ld_8bits_mem8_read()
                                                       : phys_mem8[mem8_loc ^ last_tlb_val]);
                         }
-                            if ((local_OPbyte_var & 7) == 5) {
+                            if ((localcc_opbyte_var & 7) == 5) {
                                 n += 4;
                             }
                             break;
@@ -6578,7 +6466,7 @@ int x86Internal::operation_size_function(int eip_offset, int OPbyte)
                     mem8_loc           = (eip_offset + (n++)) >> 0;
                     uint32_t mem8_locu = mem8_loc;
                     mem8               = (((last_tlb_val = tlb_read[mem8_locu >> 12]) == -1) ? __ld_8bits_mem8_read()
-                                                                                               : phys_mem8[mem8_loc ^ last_tlb_val]);
+                                                                                             : phys_mem8[mem8_loc ^ last_tlb_val]);
                 }
                 if (CS_flags & 0x0080) {
                     switch (mem8 >> 6) {
@@ -6600,11 +6488,11 @@ int x86Internal::operation_size_function(int eip_offset, int OPbyte)
                                 abort(6);
                             mem8_loc           = (eip_offset + (n++)) >> 0;
                             uint32_t mem8_locu = mem8_loc;
-                            local_OPbyte_var   = (((last_tlb_val = tlb_read[mem8_locu >> 12]) == -1)
+                            localcc_opbyte_var = (((last_tlb_val = tlb_read[mem8_locu >> 12]) == -1)
                                                       ? __ld_8bits_mem8_read()
                                                       : phys_mem8[mem8_loc ^ last_tlb_val]);
                         }
-                            if ((local_OPbyte_var & 7) == 5) {
+                            if ((localcc_opbyte_var & 7) == 5) {
                                 n += 4;
                             }
                             break;
@@ -6660,7 +6548,7 @@ int x86Internal::operation_size_function(int eip_offset, int OPbyte)
                         abort(6);
                     mem8_loc = (eip_offset + (n++)) >> 0;
                     mem8     = (((last_tlb_val = tlb_read[mem8_loc >> 12]) == -1) ? __ld_8bits_mem8_read()
-                                                                                    : phys_mem8[mem8_loc ^ last_tlb_val]);
+                                                                                  : phys_mem8[mem8_loc ^ last_tlb_val]);
                 }
                 if (CS_flags & 0x0080) {
                     switch (mem8 >> 6) {
@@ -6680,12 +6568,12 @@ int x86Internal::operation_size_function(int eip_offset, int OPbyte)
                         case 0x04: {
                             if ((n + 1) > 15)
                                 abort(6);
-                            mem8_loc         = (eip_offset + (n++)) >> 0;
-                            local_OPbyte_var = (((last_tlb_val = tlb_read[mem8_loc >> 12]) == -1)
-                                                    ? __ld_8bits_mem8_read()
-                                                    : phys_mem8[mem8_loc ^ last_tlb_val]);
+                            mem8_loc           = (eip_offset + (n++)) >> 0;
+                            localcc_opbyte_var = (((last_tlb_val = tlb_read[mem8_loc >> 12]) == -1)
+                                                      ? __ld_8bits_mem8_read()
+                                                      : phys_mem8[mem8_loc ^ last_tlb_val]);
                         }
-                            if ((local_OPbyte_var & 7) == 5) {
+                            if ((localcc_opbyte_var & 7) == 5) {
                                 n += 4;
                             }
                             break;
@@ -6740,7 +6628,7 @@ int x86Internal::operation_size_function(int eip_offset, int OPbyte)
                     mem8_loc           = (eip_offset + (n++)) >> 0;
                     uint32_t mem8_locu = mem8_loc;
                     mem8               = (((last_tlb_val = tlb_read[mem8_locu >> 12]) == -1) ? __ld_8bits_mem8_read()
-                                                                                               : phys_mem8[mem8_loc ^ last_tlb_val]);
+                                                                                             : phys_mem8[mem8_loc ^ last_tlb_val]);
                 }
                 if (CS_flags & 0x0080) {
                     switch (mem8 >> 6) {
@@ -6762,11 +6650,11 @@ int x86Internal::operation_size_function(int eip_offset, int OPbyte)
                                 abort(6);
                             mem8_loc           = (eip_offset + (n++)) >> 0;
                             uint32_t mem8_locu = mem8_loc;
-                            local_OPbyte_var   = (((last_tlb_val = tlb_read[mem8_locu >> 12]) == -1)
+                            localcc_opbyte_var = (((last_tlb_val = tlb_read[mem8_locu >> 12]) == -1)
                                                       ? __ld_8bits_mem8_read()
                                                       : phys_mem8[mem8_loc ^ last_tlb_val]);
                         }
-                            if ((local_OPbyte_var & 7) == 5) {
+                            if ((localcc_opbyte_var & 7) == 5) {
                                 n += 4;
                             }
                             break;
@@ -6824,7 +6712,7 @@ int x86Internal::operation_size_function(int eip_offset, int OPbyte)
                     mem8_loc           = (eip_offset + (n++)) >> 0;
                     uint32_t mem8_locu = mem8_loc;
                     mem8               = (((last_tlb_val = tlb_read[mem8_locu >> 12]) == -1) ? __ld_8bits_mem8_read()
-                                                                                               : phys_mem8[mem8_loc ^ last_tlb_val]);
+                                                                                             : phys_mem8[mem8_loc ^ last_tlb_val]);
                 }
                 if (CS_flags & 0x0080) {
                     switch (mem8 >> 6) {
@@ -6846,11 +6734,11 @@ int x86Internal::operation_size_function(int eip_offset, int OPbyte)
                                 abort(6);
                             mem8_loc           = (eip_offset + (n++)) >> 0;
                             uint32_t mem8_locu = mem8_loc;
-                            local_OPbyte_var   = (((last_tlb_val = tlb_read[mem8_locu >> 12]) == -1)
+                            localcc_opbyte_var = (((last_tlb_val = tlb_read[mem8_locu >> 12]) == -1)
                                                       ? __ld_8bits_mem8_read()
                                                       : phys_mem8[mem8_loc ^ last_tlb_val]);
                         }
-                            if ((local_OPbyte_var & 7) == 5) {
+                            if ((localcc_opbyte_var & 7) == 5) {
                                 n += 4;
                             }
                             break;
@@ -6927,7 +6815,7 @@ int x86Internal::operation_size_function(int eip_offset, int OPbyte)
                     abort(6);
                 mem8_loc = (eip_offset + (n++)) >> 0;
                 OPbyte   = (((last_tlb_val = tlb_read[mem8_loc >> 12]) == -1) ? __ld_8bits_mem8_read()
-                                                                                : phys_mem8[mem8_loc ^ last_tlb_val]);
+                                                                              : phys_mem8[mem8_loc ^ last_tlb_val]);
             }
                 switch (OPbyte) {
                     case 0x06:    // CLTS  CR0 Clear Task-Switched Flag in CR0
@@ -7056,11 +6944,11 @@ int x86Internal::operation_size_function(int eip_offset, int OPbyte)
                                         abort(6);
                                     mem8_loc           = (eip_offset + (n++)) >> 0;
                                     uint32_t mem8_locu = mem8_loc;
-                                    local_OPbyte_var   = (((last_tlb_val = tlb_read[mem8_locu >> 12]) == -1)
+                                    localcc_opbyte_var = (((last_tlb_val = tlb_read[mem8_locu >> 12]) == -1)
                                                               ? __ld_8bits_mem8_read()
                                                               : phys_mem8[mem8_loc ^ last_tlb_val]);
                                 }
-                                    if ((local_OPbyte_var & 7) == 5) {
+                                    if ((localcc_opbyte_var & 7) == 5) {
                                         n += 4;
                                     }
                                     break;
@@ -7137,11 +7025,11 @@ int x86Internal::operation_size_function(int eip_offset, int OPbyte)
                                         abort(6);
                                     mem8_loc           = (eip_offset + (n++)) >> 0;
                                     uint32_t mem8_locu = mem8_loc;
-                                    local_OPbyte_var   = (((last_tlb_val = tlb_read[mem8_locu >> 12]) == -1)
+                                    localcc_opbyte_var = (((last_tlb_val = tlb_read[mem8_locu >> 12]) == -1)
                                                               ? __ld_8bits_mem8_read()
                                                               : phys_mem8[mem8_loc ^ last_tlb_val]);
                                 }
-                                    if ((local_OPbyte_var & 7) == 5) {
+                                    if ((localcc_opbyte_var & 7) == 5) {
                                         n += 4;
                                     }
                                     break;
@@ -8571,7 +8459,7 @@ void x86Internal::op_LAR_LSL(bool is_32_bit, bool is_lsl)
         selector = ld_16bits_mem8_read();
     }
 
-    x    = of(selector, is_lsl);
+    x      = of(selector, is_lsl);
     cc_src = get_conditional_flags();
 
     if (x == -1) {
@@ -8584,7 +8472,7 @@ void x86Internal::op_LAR_LSL(bool is_32_bit, bool is_lsl)
             set_lower_word_in_register(reg_idx1, x);
     }
     cc_dst = ((cc_src >> 6) & 1) ^ 1;
-    _op  = 24;
+    cc_op  = 24;
 }
 int x86Internal::segment_isnt_accessible(int selector, bool is_verw)
 {
@@ -8627,7 +8515,7 @@ int x86Internal::segment_isnt_accessible(int selector, bool is_verw)
 void x86Internal::op_VERR_VERW(int selector, bool is_verw)
 {
     int z;
-    z    = segment_isnt_accessible(selector, is_verw);
+    z      = segment_isnt_accessible(selector, is_verw);
     cc_src = get_conditional_flags();
 
     // clear eflags.zf if selector is accessible and (readable (for VERR) or writable (for VERW))
@@ -8636,7 +8524,7 @@ void x86Internal::op_VERR_VERW(int selector, bool is_verw)
     else
         cc_src &= ~0x0040;
     cc_dst = ((cc_src >> 6) & 1) ^ 1;
-    _op  = 24;
+    cc_op  = 24;
 }
 void x86Internal::op_ARPL()
 {
@@ -8651,7 +8539,7 @@ void x86Internal::op_ARPL()
         mem8_loc = segment_translation(mem8);
         x        = ld_16bits_mem8_write();
     }
-    y    = regs[(mem8 >> 3) & 7];
+    y      = regs[(mem8 >> 3) & 7];
     cc_src = get_conditional_flags();
     if ((x & 3) < (y & 3)) {
         x = (x & ~3) | (y & 3);
@@ -8665,7 +8553,7 @@ void x86Internal::op_ARPL()
         cc_src &= ~0x0040;
     }
     cc_dst = ((cc_src >> 6) & 1) ^ 1;
-    _op  = 24;
+    cc_op  = 24;
 }
 void x86Internal::op_CPUID()
 {
@@ -8697,8 +8585,8 @@ void x86Internal::op_AAM(int base)
     xf      = (wf / base) & -1;
     wf      = (wf % base);
     regs[0] = (regs[0] & ~0xffff) | wf | (xf << 8);
-    cc_dst    = (((wf) << 24) >> 24);
-    _op     = 12;
+    cc_dst  = (((wf) << 24) >> 24);
+    cc_op   = 12;
 }
 void x86Internal::op_AAD(int base)
 {
@@ -8707,8 +8595,8 @@ void x86Internal::op_AAD(int base)
     xf      = (regs[0] >> 8) & 0xff;
     wf      = (xf * base + wf) & 0xff;
     regs[0] = (regs[0] & ~0xffff) | wf;
-    cc_dst    = (((wf) << 24) >> 24);
-    _op     = 12;
+    cc_dst  = (((wf) << 24) >> 24);
+    cc_op   = 12;
 }
 void x86Internal::op_AAA()
 {
@@ -8727,9 +8615,9 @@ void x86Internal::op_AAA()
         wf &= 0x0f;
     }
     regs[0] = (regs[0] & ~0xffff) | wf | (xf << 8);
-    cc_src    = flag_bits;
-    cc_dst    = ((cc_src >> 6) & 1) ^ 1;
-    _op     = 24;
+    cc_src  = flag_bits;
+    cc_dst  = ((cc_src >> 6) & 1) ^ 1;
+    cc_op   = 24;
 }
 void x86Internal::op_AAS()
 {
@@ -8748,9 +8636,9 @@ void x86Internal::op_AAS()
         wf &= 0x0f;
     }
     regs[0] = (regs[0] & ~0xffff) | wf | (xf << 8);
-    cc_src    = flag_bits;
-    cc_dst    = ((cc_src >> 6) & 1) ^ 1;
-    _op     = 24;
+    cc_src  = flag_bits;
+    cc_dst  = ((cc_src >> 6) & 1) ^ 1;
+    cc_op   = 24;
 }
 void x86Internal::op_DAA()
 {
@@ -8774,7 +8662,7 @@ void x86Internal::op_DAA()
     flag_bits |= (wf & 0x80);
     cc_src = flag_bits;
     cc_dst = ((cc_src >> 6) & 1) ^ 1;
-    _op  = 24;
+    cc_op  = 24;
 }
 void x86Internal::op_DAS()
 {
@@ -8801,7 +8689,7 @@ void x86Internal::op_DAS()
     flag_bits |= (wf & 0x80);
     cc_src = flag_bits;
     cc_dst = ((cc_src >> 6) & 1) ^ 1;
-    _op  = 24;
+    cc_op  = 24;
 }
 void x86Internal::checkOp_BOUND()
 {

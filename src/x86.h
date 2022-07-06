@@ -71,10 +71,10 @@ class x86 {
 
     int eip = 0;    // instruction pointer
 
-    int cc_op   = 0;    // current op
+    int cccc_op   = 0;    // current op
     int cccc_dst  = 0;    // current dest
     int cccc_src  = 0;    // current src
-    int cc_op2  = 0;    // current op, byte2
+    int cccc_op2  = 0;    // current op, byte2
     int cccc_dst2 = 0;    // current dest, byte2
 
     uint8_t  *phys_mem   = nullptr;
@@ -113,17 +113,105 @@ class x86 {
     void load(uint8_t *bin, int offset, int size);
     void start(int start_addr, int initrd_size, int cmdline_addr);
 
-    uint8_t ld8_phys(int mem8_loc);
-    void    st8_phys(int mem8_loc, uint8_t x);
-    int     ld32_phys(int mem8_loc);
-    void    st32_phys(int mem8_loc, int x);
-    void    write_string(int mem8_loc, string str);
-    void    tlb_set_page(int mem8_loc, int page_val, int set_write_tlb, int set_user_tlb);
+    void write_string(int mem8_loc, string str)
+    {
+        auto s = str.c_str();
+        printf("%s\n", s);
+        for (int i = 0; i < str.length(); i++) {
+            st8_phys(mem8_loc++, s[i] & 0xff);
+        }
+        st8_phys(mem8_loc, 0);
+    }
+    uint8_t ld8_phys(int mem8_loc)
+    {
+        return phys_mem8[mem8_loc];
+    }
+    void st8_phys(int mem8_loc, uint8_t x)
+    {
+        phys_mem8[mem8_loc] = x;
+    }
+    int ld32_phys(int mem8_loc)
+    {
+        return phys_mem32[mem8_loc >> 2];
+    }
+    void st32_phys(int mem8_loc, int x)
+    {
+        uint32_t mem8_locu         = mem8_loc;
+        phys_mem32[mem8_locu >> 2] = x;
+    }
+    void tlb_set_page(int mem8_loc, int page_val, int set_write_tlb, int set_user_tlb)
+    {
+        page_val &= -4096;    // only top 20bits matter
+        mem8_loc &= -4096;    // only top 20bits matter
 
-    void tlb_flush_page(int mem8_loc);
-    void tlb_flush_all();
-    void tlb_flush_all1(int la);
-    void tlb_clear(int i);
+        uint32_t mem8_locu = mem8_loc;
+        int      x         = mem8_locu ^ page_val;    // XOR used to simulate hashing
+        int      i         = mem8_locu >> 12;         // top 20bits point to TLB
+        if (tlb_read_kernel[i] == -1) {
+            if (tlb_pages_count >= 2048) {
+                tlb_flush_all1((i - 1) & 0xfffff);
+            }
+            tlb_pages[tlb_pages_count++] = i;
+        }
+
+        tlb_read_kernel[i] = x;
+
+        if (set_write_tlb) {
+            tlb_write_kernel[i] = x;
+        } else {
+            tlb_write_kernel[i] = -1;
+        }
+
+        if (set_user_tlb) {
+            tlb_read_user[i] = x;
+            if (set_write_tlb) {
+                tlb_write_user[i] = x;
+            } else {
+                tlb_write_user[i] = -1;
+            }
+        } else {
+            tlb_read_user[i]  = -1;
+            tlb_write_user[i] = -1;
+        }
+    }
+    void tlb_flush_page(int mem8_loc)
+    {
+        uint32_t mem8_locu = mem8_loc;
+        int      i         = mem8_locu >> 12;
+        tlb_clear(i);
+    }
+    void tlb_flush_all()
+    {
+        int n = tlb_pages_count;
+
+        for (int j = 0; j < n; j++) {
+            int i = tlb_pages[j];
+            tlb_clear(i);
+        }
+        tlb_pages_count = 0;
+    }
+    void tlb_flush_all1(int la)
+    {
+        int n     = tlb_pages_count;
+        int new_n = 0;
+
+        for (int j = 0; j < n; j++) {
+            int i = tlb_pages[j];
+            if (i == la) {
+                tlb_pages[new_n++] = i;
+            } else {
+                tlb_clear(i);
+            }
+        }
+        tlb_pages_count = new_n;
+    }
+    void tlb_clear(int i)
+    {
+        tlb_read_kernel[i]  = -1;
+        tlb_write_kernel[i] = -1;
+        tlb_read_user[i]    = -1;
+        tlb_write_user[i]   = -1;
+    }
 
     string hex_rep(int x, int n)
     {
@@ -183,8 +271,8 @@ class x86Internal : public x86 {
 
     int cc_src  = 0;
     int cc_dst  = 0;
-    int _op   = 0;
-    int _op2  = 0;
+    int cc_op   = 0;
+    int cc_op2  = 0;
     int cc_dst2 = 0;
 
     int      *tlb_read, *tlb_write;
@@ -194,6 +282,7 @@ class x86Internal : public x86 {
 
   public:
     int exec(int _N_cycles);
+    int init(int _N_cycles);
     int Instruction(int _N_cycles, ErrorInfo interrupt);
 
     int ld8_port(int port_num);
@@ -205,6 +294,7 @@ class x86Internal : public x86 {
     void st32_port(int port_num, int x);
 
   private:
+    int  check_halted();
     void init_segment_local_vars();
     void check_interrupt();
 
@@ -285,7 +375,7 @@ class x86Internal : public x86 {
     int  op_IMUL(int a, int OPbyte);
     int  op_16_MUL(int a, int OPbyte);
     int  op_16_IMUL(int a, int OPbyte);
-    int  do_multiply32(int _a, int _OPbyte);
+    int  do_multiply32(int _a, int cc_opbyte);
     int  op_MUL32(int a, int OPbyte);
     int  op_IMUL32(int a, int OPbyte);
 
@@ -297,7 +387,7 @@ class x86Internal : public x86 {
     int  check_less_or_equal();
     int  check_adjust_flag();
     int  check_status_bits_for_jump(int gd);
-    int  conditional_flags_for_rot_shift_ops();
+    int  conditional_flags_for_rot_shiftcc_ops();
     int  get_conditional_flags();
     int  get_FLAGS();
     void set_FLAGS(int flag_bits, int ld);
