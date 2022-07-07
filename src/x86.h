@@ -43,8 +43,8 @@ class x86 {
     // EAX, EBX, ECX, EDX, ESI, EDI, ESP, EBP  32bit registers
     int regs[8]{0};
     int cycle_count = 0;
-    int cpl = 0;    // current privilege level
-    int df = 1;    // Direction Flag
+    int cpl         = 0;    // current privilege level
+    int df          = 1;    // Direction Flag
 
     int cr0 = (1 << 0);    // PE-mode ON
     int cr2 = 0;
@@ -277,10 +277,9 @@ class x86Internal : public x86 {
 
     int dpl = 0;
 
-    int      *tlb_read, *tlb_write;
-    ErrorInfo interrupt;
+    int           *tlb_read, *tlb_write;
+    ErrorInfo      interrupt;
     vector<string> lines;
-
 
   public:
     int  exec(int _N_cycles);
@@ -413,8 +412,8 @@ class x86Internal : public x86 {
 
     int  SS_mask_from_flags(int descriptor_high4bytes);
     void load_from_descriptor_table(int selector, int *desary);
-    int  calculate_descriptor_limit(int descriptor_low4bytes, int descriptor_high4bytes);
-    int  calculate_descriptor_base(int descriptor_low4bytes, int descriptor_high4bytes);
+    int  calc_desp_limit(int descriptor_low4bytes, int descriptor_high4bytes);
+    int  calc_desp_base(int descriptor_low4bytes, int descriptor_high4bytes);
     void set_descriptor_register(DescriptorTable *descriptor_table, int descriptor_low4bytes,
                                  int descriptor_high4bytes);
     void set_segment_vars(int ee, int selector, int base, int limit, int flags);
@@ -493,8 +492,8 @@ class x86Internal : public x86 {
     void stringOp_LODSD();
     void stringOp_SCASD();
 
-    void           dump(int OPbyte);
-    int            file_read();
+    void dump(int OPbyte);
+    int  file_read();
 
     int current_cycle_count()
     {
