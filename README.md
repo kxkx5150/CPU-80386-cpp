@@ -12,14 +12,9 @@ boot Linux
 
 ### WIP
 
-
-
 https://user-images.githubusercontent.com/10168979/177424985-9e91d420-b6b8-4e00-8db4-0dbcb3d3b295.mp4
 
 ![ss](https://user-images.githubusercontent.com/10168979/177425392-062bc70e-73c5-4fb4-a054-42669a44c054.png)
-
-
-
 
 use JSLinux as a reference
 
@@ -29,9 +24,13 @@ use JSLinux as a reference
 
 [8086 PC emulator](https://github.com/kxkx5150/CPU-8086-cpp)
 
-<br><br><br>
+<br>
 
-<br><br><br>
+## Zilog Z80 version
+
+[MSX1 Emulator](https://github.com/kxkx5150/CPU-Z80-cpp)
+
+<br><br><br><br><br><br>
 
 vscode extensions
 
