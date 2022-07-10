@@ -36,7 +36,11 @@ use JSLinux as a reference
 
 [Apple II Emulator](https://github.com/kxkx5150/CPU-6502-cpp)  
 
+<br>
 
+## CHIP-8
+
+[CHIP8 Emulator](https://github.com/kxkx5150/CPU-CHIP8-cpp)  
 
 
 <br><br><br><br><br><br>
