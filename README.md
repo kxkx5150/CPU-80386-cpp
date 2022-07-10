@@ -30,6 +30,15 @@ use JSLinux as a reference
 
 [MSX1 Emulator](https://github.com/kxkx5150/CPU-Z80-cpp)
 
+<br>
+
+## MOS 6502 version
+
+[Apple II Emulator](https://github.com/kxkx5150/CPU-6502-cpp)  
+
+
+
+
 <br><br><br><br><br><br>
 
 vscode extensions
