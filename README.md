@@ -35,6 +35,7 @@ use JSLinux as a reference
 ## MOS 6502 version
 
 [Apple II Emulator](https://github.com/kxkx5150/CPU-6502-cpp)  
+[NES (ファミコン) Emulator](https://github.com/kxkx5150/Famicom-cpp)  
 
 <br>
 
