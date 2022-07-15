@@ -3,7 +3,7 @@
 
 #include <SDL2/SDL.h>
 #include <cstdio>
-#include "src/PC.h"
+#include "PC.h"
 #include <time.h>
 #include <thread>
 
@@ -20,8 +20,8 @@ int main(int ArgCount, char **Args)
     PC              *pc = new PC();
     pc->init();
     pc->start();
-    
-    SDL_Window      *window =
+
+    SDL_Window *window =
         SDL_CreateWindow("", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_OPENGL);
     SDL_Renderer *render = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
     SDL_RenderSetScale(render, 1, 1);

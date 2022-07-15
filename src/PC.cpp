@@ -29,7 +29,7 @@ void PC::load(int binno, std::string path)
     const int size = ftell(f);
     fseek(f, 0, SEEK_SET);
     auto buffer = new uint8_t[size];
-    fread(buffer, size, 1, f);
+    auto __     = fread(buffer, size, 1, f);
 
     int offset = 0;
     if (binno == 0) {
