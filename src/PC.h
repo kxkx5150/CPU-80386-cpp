@@ -1,7 +1,7 @@
 #ifndef _H_PC
 #define _H_PC
 
-#include "x86.h"
+#include "x86/x86.h"
 #include <stdexcept>
 #include <vector>
 #include <SDL2/SDL.h>

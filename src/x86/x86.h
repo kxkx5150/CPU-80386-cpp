@@ -8,8 +8,8 @@
 #include <cstddef>
 #include <string>
 #include <vector>
-#include "CMOS.h"
-#include "KBD.h"
+#include "../CMOS.h"
+#include "../KBD.h"
 
 using namespace std;
 typedef struct DescriptorTable
