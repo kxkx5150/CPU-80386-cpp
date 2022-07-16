@@ -229,8 +229,8 @@ void x86Internal::dump(int OPbyte)
         }
     } else {
         if (16765000 < count) {
-            printf("\n\n\n\n\n\n");
-            exit(1);
+            // printf("\n\n\n\n\n\n");
+            // exit(1);
         }
     }
 }

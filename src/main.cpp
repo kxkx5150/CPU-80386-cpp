@@ -1,9 +1,9 @@
 #include <cstddef>
 #define SDL_MAIN_HANDLED
-
-#include <SDL2/SDL.h>
-#include <cstdio>
 #include "PC.h"
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
+#include <cstdio>
 #include <time.h>
 #include <thread>
 
@@ -12,11 +12,12 @@ int Running = 1;
 void render_loop(PC *pc, SDL_Renderer *render, int width, int height)
 {
     while (Running) {
+        pc->paint(render, width, height);
     }
 }
 int main(int ArgCount, char **Args)
 {
-    static const int width = 160, height = 100;
+    static const int width = 560, height = 300;
     PC              *pc = new PC();
     pc->init();
     pc->start();

@@ -1,12 +1,22 @@
 #include <cstdint>
 #include <cstdio>
+#include <string>
 #include <thread>
 #include <chrono>
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
 #include "PC.h"
 
 PC::PC()
 {
     cpu = new x86Internal(mem_size);
+
+    TTF_Init();
+    font = TTF_OpenFont("bin/cp437.ttf", 12);
+    if (font == NULL) {
+        printf("error: font not found\n");
+        exit(EXIT_FAILURE);
+    }
 }
 PC::~PC()
 {
@@ -80,8 +90,38 @@ void PC::run_cpu()
             break;
         }
     }
-    if (!do_reset) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        run_cpu();
+    // if (!do_reset) {
+    //     // std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    // }
+}
+void PC::paint(SDL_Renderer *renderer, int widht, int height)
+{
+    SDL_RenderClear(renderer);
+    SDL_SetRenderDrawColor(renderer, 22, 22, 22, SDL_ALPHA_OPAQUE);
+    SDL_Rect rect;
+    rect.x = 0;
+    rect.y = 0;
+    rect.w = 560;
+    rect.h = 300;
+    SDL_RenderFillRect(renderer, &rect);
+
+    for (int y = 0; y < 25; ++y) {
+        SDL_Color color = {255, 255, 255};
+
+        SDL_Rect r1;
+        r1.x = 0;
+        r1.y = y * 12;
+        r1.w = 70;
+        r1.h = 12;
+
+        std::string  str          = "";
+        SDL_Surface *text_surface = TTF_RenderUTF8_Solid(font, str.c_str(), color);
+        SDL_Texture *Message      = SDL_CreateTextureFromSurface(renderer, text_surface);
+
+        SDL_RenderCopy(renderer, Message, NULL, &r1);
+        SDL_FreeSurface(text_surface);
+        SDL_DestroyTexture(Message);
     }
+    SDL_RenderPresent(renderer);
+    SDL_Delay(10);
 }

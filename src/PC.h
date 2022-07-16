@@ -19,8 +19,11 @@ class PC {
     void start();
     void run_cpu();
 
+    void paint(SDL_Renderer *render, int widht, int height);
+
   private:
-    x86Internal *cpu = nullptr;
+    x86Internal *cpu  = nullptr;
+    TTF_Font    *font = nullptr;
 
     uint8_t *bin0 = nullptr;
     uint8_t *bin1 = nullptr;
