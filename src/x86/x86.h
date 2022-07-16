@@ -814,11 +814,32 @@ class Serial {
     PIC_Controller *pic;
 
   public:
+    std::string strbufs[1000];
+    int         strbufs_idx = 0;
+    std::string strbuf      = "";
+
+  public:
     Serial(PIC_Controller *_pic, int kh, int lh)
     {
         pic          = _pic;
         set_irq_func = kh;
         write_func   = lh;
+    }
+    void store_char(int x)
+    {
+        if (x == 13) {
+            strbufs[strbufs_idx] = strbuf;
+            strbuf               = "";
+            strbufs_idx++;
+            if (strbufs_idx == 1000) {
+                strbufs_idx = 0;
+            }
+        } else {
+            if (0x1f < x && x < 0x7f) {
+                strbuf += x;
+            }
+        }
+        printf("%c", x);
     }
 
     void update_irq()
@@ -848,8 +869,7 @@ class Serial {
                 } else {
                     lsr &= ~0x20;
                     update_irq();
-                    // write_func(String.fromCharCode(x));
-                    printf("%c", x);
+                    store_char(x);
                     lsr |= 0x20;
                     lsr |= 0x40;
                     update_irq();

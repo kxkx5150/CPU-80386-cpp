@@ -17,10 +17,12 @@ void render_loop(PC *pc, SDL_Renderer *render, int width, int height)
 }
 int main(int ArgCount, char **Args)
 {
-    static const int width = 560, height = 300;
+    static const int width = 840, height = 350;
     PC              *pc = new PC();
     pc->init();
     pc->start();
+
+    int speed = 20;
 
     SDL_Window *window =
         SDL_CreateWindow("", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_OPENGL);
@@ -36,6 +38,8 @@ int main(int ArgCount, char **Args)
             if (Event.type == SDL_QUIT)
                 Running = 0;
         }
+        if (speed != 100)
+            SDL_Delay(1000 / speed);
     }
 
     th.join();

@@ -164,7 +164,6 @@ int x86Internal::file_read()
     }
     return EXIT_SUCCESS;
 }
-
 void x86Internal::dump(int OPbyte)
 {
     count++;

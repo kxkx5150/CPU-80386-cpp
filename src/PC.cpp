@@ -12,7 +12,7 @@ PC::PC()
     cpu = new x86Internal(mem_size);
 
     TTF_Init();
-    font = TTF_OpenFont("bin/cp437.ttf", 12);
+    font = TTF_OpenFont("bin/cp437.ttf", 14);
     if (font == NULL) {
         printf("error: font not found\n");
         exit(EXIT_FAILURE);
@@ -103,18 +103,29 @@ void PC::paint(SDL_Renderer *renderer, int widht, int height)
     rect.y = 0;
     rect.w = 560;
     rect.h = 300;
+
     SDL_RenderFillRect(renderer, &rect);
+    int       stridx = cpu->serial->strbufs_idx;
+    SDL_Color color  = {255, 255, 255};
 
     for (int y = 0; y < 25; ++y) {
-        SDL_Color color = {255, 255, 255};
+        string str = "";
+
+        if (24 < stridx) {
+            str = cpu->serial->strbufs[stridx - 24 + y];
+        } else {
+            str = cpu->serial->strbufs[y];
+        }
+        int strlen = str.length();
+        if (strlen == 0)
+            continue;
 
         SDL_Rect r1;
         r1.x = 0;
-        r1.y = y * 12;
-        r1.w = 70;
-        r1.h = 12;
+        r1.y = y * 14;
+        r1.w = strlen * 9;
+        r1.h = 14;
 
-        std::string  str          = "";
         SDL_Surface *text_surface = TTF_RenderUTF8_Solid(font, str.c_str(), color);
         SDL_Texture *Message      = SDL_CreateTextureFromSurface(renderer, text_surface);
 
