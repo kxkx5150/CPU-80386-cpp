@@ -97,7 +97,7 @@ void PC::run_cpu()
 void PC::paint(SDL_Renderer *renderer, int widht, int height)
 {
     SDL_RenderClear(renderer);
-    SDL_SetRenderDrawColor(renderer, 22, 22, 22, SDL_ALPHA_OPAQUE);
+    SDL_SetRenderDrawColor(renderer, 11, 11, 11, SDL_ALPHA_OPAQUE);
     SDL_Rect rect;
     rect.x = 0;
     rect.y = 0;
@@ -106,10 +106,10 @@ void PC::paint(SDL_Renderer *renderer, int widht, int height)
 
     SDL_RenderFillRect(renderer, &rect);
     int       stridx = cpu->serial->strbufs_idx;
-    SDL_Color color  = {255, 255, 255};
+    SDL_Color color  = {50, 205, 50};
 
     for (int y = 0; y < 25; ++y) {
-        string str = "";
+        std::string str = "";
 
         if (24 < stridx) {
             str = cpu->serial->strbufs[stridx - 24 + y];

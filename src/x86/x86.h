@@ -11,7 +11,6 @@
 #include "../CMOS.h"
 #include "../KBD.h"
 
-using namespace std;
 typedef struct DescriptorTable
 {
     int selector = 0;
@@ -31,12 +30,12 @@ class PIC_Controller;
 class x86 {
 
   public:
-    bool   logcheck        = true;
-    string filename        = "log.txt";
-    int    filecheck_start = 0;
-    int    filecheck_end   = 1000;
-    int    fileoffset      = 0;
-    bool   stepinfo        = false;
+    bool        logcheck        = true;
+    std::string filename        = "log.txt";
+    int         filecheck_start = 0;
+    int         filecheck_end   = 1000;
+    int         fileoffset      = 0;
+    bool        stepinfo        = false;
 
     int count = 0;
 
@@ -110,7 +109,7 @@ class x86 {
     void load(uint8_t *bin, int offset, int size);
     void start(int start_addr, int initrd_size, int cmdline_addr);
 
-    void write_string(int mem8_loc, string str)
+    void write_string(int mem8_loc, std::string str)
     {
         auto s = str.c_str();
         printf("%s\n", s);
@@ -210,26 +209,26 @@ class x86 {
         tlb_write_user[i]   = -1;
     }
 
-    string hex_rep(int x, int n)
+    std::string hex_rep(int x, int n)
     {
-        string s = "";
-        int    i;
-        char   h[] = "0123456789ABCDEF";
-        s          = "";
+        std::string s = "";
+        int         i;
+        char        h[] = "0123456789ABCDEF";
+        s               = "";
         for (i = n - 1; i >= 0; i--) {
             s = s + h[(x >> (i * 4)) & 15];
         }
         return s;
     }
-    string _4_bytes_(int n)
+    std::string _4_bytes_(int n)
     {
         return hex_rep(n, 8);
     }
-    string _2_bytes_(int n)
+    std::string _2_bytes_(int n)
     {
         return hex_rep(n, 2);
     }
-    string _1_byte_(int n)
+    std::string _1_byte_(int n)
     {
         return hex_rep(n, 4);
     }
@@ -277,9 +276,9 @@ class x86Internal : public x86 {
 
     int dpl = 0;
 
-    int           *tlb_read, *tlb_write;
-    ErrorInfo      interrupt;
-    vector<string> lines;
+    int                     *tlb_read, *tlb_write;
+    ErrorInfo                interrupt;
+    std::vector<std::string> lines;
 
   public:
     int  exec(int _N_cycles);
@@ -499,7 +498,7 @@ class x86Internal : public x86 {
     {
         return cycle_count + (N_cycles - cycles_left);
     }
-    void cpu_abort(string str)
+    void cpu_abort(std::string str)
     {
         throw "CPU abort: " + str;
     }
@@ -828,6 +827,14 @@ class Serial {
     void store_char(int x)
     {
         if (x == 13) {
+            strbufs[strbufs_idx] = strbuf;
+            strbuf               = "";
+            strbufs_idx++;
+            if (strbufs_idx == 1000) {
+                strbufs_idx = 0;
+            }
+        } else if (x == '#') {
+            strbuf += x;
             strbufs[strbufs_idx] = strbuf;
             strbuf               = "";
             strbufs_idx++;

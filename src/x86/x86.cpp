@@ -80,8 +80,8 @@ int x86Internal::file_read()
     filename = "linux_boot_logs/log16.txt";
 
     if (logcheck) {
-        string   line;
-        ifstream input_file(filename);
+        std::string   line;
+        std::ifstream input_file(filename);
         if (!input_file.is_open()) {
             logcheck = false;
             stepinfo = false;
@@ -169,8 +169,8 @@ void x86Internal::dump(int OPbyte)
     count++;
 
     if (logcheck && filecheck_start <= count && count <= filecheck_end) {
-        vector<string> ta = {"ES", "CS", "SS", "DS", "FS", "GS", "LDT", "TR"};
-        char           buf1[1000];
+        std::vector<std::string> ta = {"ES", "CS", "SS", "DS", "FS", "GS", "LDT", "TR"};
+        char                     buf1[1000];
         sprintf(buf1, "STEPS=%d OPCODE=%d", count, OPbyte);
         // printf("%s", buf1);
         char buf2[1000];
@@ -3095,11 +3095,11 @@ void x86Internal::do_interrupt_not_protected_mode(int intno, int ne, int error_c
 void x86Internal::do_interrupt(int intno, int ne, int error_code, int oe, int pe)
 {
     if (intno == 0x06) {
-        int    eip_tmp = eip;
-        int    eip_offset;
-        string str = "do_interrupt: intno=" + _2_bytes_(intno) + " error_code=" + _4_bytes_(error_code) +
-                     " EIP=" + _4_bytes_(eip_tmp) + " ESP=" + _4_bytes_(regs[4]) + " EAX=" + _4_bytes_(regs[0]) +
-                     " EBX=" + _4_bytes_(regs[3]) + " ECX=" + _4_bytes_(regs[1]);
+        int         eip_tmp = eip;
+        int         eip_offset;
+        std::string str = "do_interrupt: intno=" + _2_bytes_(intno) + " error_code=" + _4_bytes_(error_code) +
+                          " EIP=" + _4_bytes_(eip_tmp) + " ESP=" + _4_bytes_(regs[4]) + " EAX=" + _4_bytes_(regs[0]) +
+                          " EBX=" + _4_bytes_(regs[3]) + " ECX=" + _4_bytes_(regs[1]);
         if (intno == 0x0e) {
             str += " CR2=" + _4_bytes_(cr2);
         }
