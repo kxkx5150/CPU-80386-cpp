@@ -75,7 +75,7 @@ CMake: Configure
 
 <br><br><br>
 
-### Ctrl + Shift + b
+### F7
 
 Build
 
