@@ -26,6 +26,38 @@ https://user-images.githubusercontent.com/10168979/177424985-9e91d420-b6b8-4e00-
 
 use JSLinux as a reference
 
+<br>
+
+### No SDL2
+SDL omitted. Uses terminal window for character I/O.
+
+Compile on Cygwin/ Linos/ Macos:
+
+```bash
+cmake -DNO_SDL=ON -G "Unix Makefiles" .
+make
+```
+
+Compile on Winos:
+
+```bash
+cmake -DNO_SDL=ON -G "NMake Makefiles" .
+nmake
+```
+
+Add `-DCMAKE_BUILD_TYPE=Debug` to CMake command to compile for debugging.
+
+Run:
+
+```bash
+# boot Linux
+exe/cpp_app
+```
+
+<br>
+
+Enter shell commands at prompt after Linux boot sequence. Ctrl-C terminates Linux. Run `stty -icanon -echo` to enable character mode and turn off echo for common tty behaviour.
+
 <br><br><br><br><br><br>
 
 ## Intel 8086 version

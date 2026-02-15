@@ -1,5 +1,9 @@
 {
-  "FSharp.suggestGitignore": false,
   "editor.formatOnSave": true,
-  "clang-format.executable": "/usr/bin/clang-format",
+  "cmake.debugConfig": {
+    "cwd": "${workspaceFolder}"
+  },
+  "cmake.configureArgs": [
+    "-DNO_SDL=ON"
+  ],
 }

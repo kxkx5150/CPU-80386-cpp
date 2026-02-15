@@ -10,6 +10,7 @@
 #include <vector>
 #include "../CMOS.h"
 #include "../KBD.h"
+#include "../ringbuffer.h"
 
 typedef struct DescriptorTable
 {
@@ -255,7 +256,7 @@ class x86Internal : public x86 {
 
     int N_cycles    = 0;
     int cycles_left = 0;
-    int mem8_loc;
+    unsigned mem8_loc;
     int last_tlb_val;
     int physmem8_ptr    = 0;
     int initial_mem_ptr = 0;
@@ -808,14 +809,12 @@ class Serial {
     int         scr          = 0;
     int         set_irq_func = 0;
     int         write_func   = 0;
-    std::string receive_fifo = "";
+    RingBuffer<int> input_fifo{RingBuffer<int>(1000)};
 
     PIC_Controller *pic;
 
   public:
-    std::string strbufs[1000];
-    int         strbufs_idx = 0;
-    std::string strbuf      = "";
+    RingBuffer<int> print_fifo{RingBuffer<int>(1000)};
 
   public:
     Serial(PIC_Controller *_pic, int kh, int lh)
@@ -826,27 +825,7 @@ class Serial {
     }
     void store_char(int x)
     {
-        if (x == 13) {
-            strbufs[strbufs_idx] = strbuf;
-            strbuf               = "";
-            strbufs_idx++;
-            if (strbufs_idx == 1000) {
-                strbufs_idx = 0;
-            }
-        } else if (x == '#') {
-            strbuf += x;
-            strbufs[strbufs_idx] = strbuf;
-            strbuf               = "";
-            strbufs_idx++;
-            if (strbufs_idx == 1000) {
-                strbufs_idx = 0;
-            }
-        } else {
-            if (0x1f < x && x < 0x7f) {
-                strbuf += x;
-            }
-        }
-        printf("%c", x);
+        print_fifo.push(x);
     }
 
     void update_irq()
@@ -922,7 +901,7 @@ class Serial {
                     Pg = rbr;
                     lsr &= ~(0x01 | 0x10);
                     update_irq();
-                    // send_char_from_fifo();
+                    send_char_from_fifo();
                 }
                 break;
             case 1:
@@ -970,16 +949,14 @@ class Serial {
 
     void send_char_from_fifo()
     {
-        std::string nh = receive_fifo;
-        if (nh != "" && !(lsr & 0x01)) {
-            // send_char(nh.charCodeAt(0));
-            // receive_fifo = nh.substr(1, nh.length - 1);
+        if (!input_fifo.isempty() && !(lsr & 0x01)) {
+            send_char(input_fifo.pop());
         }
     }
 
-    void send_chars(std::string na)
+    void input_fifo_push(int na)
     {
-        receive_fifo += na;
+        input_fifo.push(na);
         send_char_from_fifo();
     }
 

@@ -4,8 +4,10 @@
 #include "x86/x86.h"
 #include <stdexcept>
 #include <vector>
+#ifndef NO_SDL
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
+#endif
 #include <cstddef>
 
 class PC {
@@ -19,11 +21,18 @@ class PC {
     void start();
     void run_cpu();
 
+#ifndef NO_SDL
     void paint(SDL_Renderer *render, int widht, int height);
+#else
+    void print();
+    void input();
+#endif
 
   private:
     x86Internal *cpu  = nullptr;
+#ifndef NO_SDL
     TTF_Font    *font = nullptr;
+#endif
 
     uint8_t *bin0 = nullptr;
     uint8_t *bin1 = nullptr;
